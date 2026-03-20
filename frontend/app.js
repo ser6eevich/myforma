@@ -14,6 +14,7 @@ tg.ready();
 const userId = tg.initDataUnsafe?.user?.id;
 
 // Блокировка входа вне Телеграма
+/*
 if (!tg.initData) {
     document.body.innerHTML = `
         <div class="fixed inset-0 bg-zinc-950 flex flex-col items-center justify-center text-center p-8 z-[9999]">
@@ -31,6 +32,7 @@ if (!tg.initData) {
     `;
     window.stop(); // Останавливаем дальнейшую загрузку
 }
+*/
 const API_URL = ""; // Пустая строка для относительных путей (работает везде)
 
 let currentDate = new Date().toISOString().split('T')[0];
@@ -88,6 +90,15 @@ async function initApp() {
     
     todayExercises = [...currentExercises];
     showDashboard(); // Показывает дашборд при входе
+
+    // Скрываем Splash Screen плавно (даем 1с на "помигать" лоадером для красоты)
+    setTimeout(() => {
+        const splash = document.getElementById('splash-screen');
+        if (splash) {
+            splash.classList.add('fade-out');
+            setTimeout(() => splash.remove(), 800);
+        }
+    }, 1000);
     
     // Глобальный хак для предотвращения стягивания ТГ (плавный)
     ['exercises-scroll-area', 'weight-scroll-area'].forEach(id => {

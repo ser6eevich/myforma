@@ -100,6 +100,8 @@
             opacity: 1 !important;
             pointer-events: auto !important;
             z-index: 70 !important;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
         }
 
         .modal-active > div {
@@ -334,11 +336,11 @@
         .modal-base {
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
         .modal-content-base {
-            transition: transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.15);
+            transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.5s ease;
         }
 
         /* Custom scrollbar for better look */
@@ -538,11 +540,41 @@
             background: linear-gradient(45deg, rgba(23, 84, 207, 0.2) 0%, rgba(23, 84, 207, 0.05) 100%);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
+
+        /* Splash Screen */
+        #splash-screen {
+            background: #F9FAFB;
+            z-index: 10000;
+        }
+        .dark #splash-screen {
+            background: #09090b;
+        }
+        #splash-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
     </style>
 </head>
 
 <body
     class="bg-surface dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 antialiased overflow-hidden overscroll-none selection:bg-primary/20">
+    
+    <!-- Splash Screen -->
+    <div id="splash-screen" class="fixed inset-0 flex flex-col items-center justify-center">
+        <div class="relative">
+            <div class="size-24 bg-primary/10 rounded-[32px] flex items-center justify-center animate-pulse">
+                <span class="material-symbols-outlined text-primary text-5xl" style="font-variation-settings: 'FILL' 1;">fitness_center</span>
+            </div>
+            <div class="absolute -inset-4 bg-primary/5 blur-2xl rounded-full animate-pulse"></div>
+        </div>
+        <h1 class="mt-8 text-2xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase">MyForma</h1>
+        <div class="mt-4 flex gap-1">
+            <div class="size-1.5 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+            <div class="size-1.5 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+            <div class="size-1.5 bg-primary rounded-full animate-bounce"></div>
+        </div>
+    </div>
     <!-- DASHBOARD VIEW -->
     <div id="view-dashboard" class="view-pane active-pane bg-mesh flex flex-col transition-colors">
         <header class="pt-8 pb-4 px-6 shrink-0 header-safe">
@@ -781,10 +813,6 @@
                             alt="Profile Photo">
                     </div>
                 </div>
-                <button
-                    class="absolute bottom-1 right-1 size-8 bg-primary rounded-full flex items-center justify-center text-white shadow-lg border-2 border-white dark:border-zinc-950">
-                    <span class="material-symbols-outlined text-sm">edit</span>
-                </button>
             </div>
             <div class="mt-4 text-center">
                 <h2 class="text-xl font-extrabold tracking-tight dark:text-zinc-50" id="profile-username">@username</h2>
