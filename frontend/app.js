@@ -1401,7 +1401,10 @@ function closeCategoryModal() {
 
 function openCustomExerciseModal() {
     closeCategoryModal();
-    showExerciseNameModal();
+    // Даем модалке категорий скрыться перед открытием ввода названия
+    setTimeout(() => {
+        showExerciseNameModal();
+    }, 450);
 }
 
 function showExerciseSelectModal(category) {
