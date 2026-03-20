@@ -96,6 +96,11 @@ async function initApp() {
             todayExercises = [...currentExercises];
             workoutsLoaded = true;
             weightsLoaded = true;
+
+            // ВАЖНО: Отрисовываем данные в интерфейсе ПЕРЕД показом
+            renderJournal();
+            renderWeightHistory(currentWeights.slice(0, 3));
+            renderWeightChart(currentWeights);
         }
     } catch (error) {
         console.error("Init App error:", error);
@@ -103,14 +108,15 @@ async function initApp() {
     
     showDashboard(); // Показывает дашборд при входе
 
-    // Скрываем Splash Screen быстрее, так как данные уже есть
-    setTimeout(() => {
-        const splash = document.getElementById('splash-screen');
-        if (splash) {
+    // Скрываем Splash Screen мгновенно после готовности данных
+    const splash = document.getElementById('splash-screen');
+    if (splash) {
+        // Небольшая пауза чтобы анимация не дергалась
+        setTimeout(() => {
             splash.classList.add('fade-out');
             setTimeout(() => splash.remove(), 800);
-        }
-    }, 600);
+        }, 50);
+    }
     
     // Глобальный хак для предотвращения стягивания ТГ (плавный)
     ['exercises-scroll-area', 'weight-scroll-area'].forEach(id => {

@@ -398,9 +398,9 @@ def init_app(telegram_id: int, date: str, database: Session = Depends(get_db)):
     
     # 4. Favorites 
     favorites = database.query(db.UserFavorite).filter(
-        db.UserFavorite.telegram_id == telegram_id
+        db.UserFavorite.user_id == telegram_id
     ).all()
-    fav_names = [f.name for f in favorites]
+    fav_names = [f.exercise_name for f in favorites]
     
     # 5. Streak 
     workout_dates = database.query(db.Workout.date).filter(
@@ -409,7 +409,7 @@ def init_app(telegram_id: int, date: str, database: Session = Depends(get_db)):
     
     dates = [d[0] for d in workout_dates]
     streak = 0
-    last_7_days = [False] * 7
+    last_7_days = []
     if dates:
         today = datetime.now().date()
         yesterday = today - timedelta(days=1)
@@ -422,7 +422,8 @@ def init_app(telegram_id: int, date: str, database: Session = Depends(get_db)):
         for i in range(6, -1, -1):
             d = (today - timedelta(days=i)).isoformat()
             last_7_days.append(d in date_set)
-        last_7_days = last_7_days[-7:]
+    else:
+        last_7_days = [False] * 7
 
     return {
         "workouts": workouts,
