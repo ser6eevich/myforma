@@ -15,12 +15,7 @@ async def cmd_start(message: types.Message):
     await message.answer(
         f"Привет, {message.from_user.first_name}! 👋\n\n"
         "Я твой ИИ-тренер Forma. Я буду напоминать тебе заполнять журнал тренировок и веса.\n\n"
-        "Жми кнопку ниже, чтобы открыть приложение! 👇",
-        reply_markup=types.InlineKeyboardMarkup(
-            inline_keyboard=[
-                [types.InlineKeyboardButton(text="Открыть Forma", web_app=types.WebAppInfo(url="https://your-mini-app-url.com"))]
-            ]
-        )
+        "Для начала работы открой приложение кнопкой слева от ввода текста! 👇"
     )
 
 async def send_notification(chat_id: int, text: str):

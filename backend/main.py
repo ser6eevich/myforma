@@ -107,8 +107,18 @@ class AdminAuth(AuthenticationBackend):
     async def authenticate(self, request: Request) -> bool:
         return request.session.get("token") == "authenticated"
 
+@app.get("/admin")
+def admin_redirect():
+    return RedirectResponse(url="/admin/")
+
 authentication_backend = AdminAuth(secret_key=SECRET_KEY)
-admin = Admin(app, db.engine, title="MyForma Admin", authentication_backend=authentication_backend)
+admin = Admin(
+    app, 
+    db.engine, 
+    title="MyForma Admin", 
+    base_url="/admin", 
+    authentication_backend=authentication_backend
+)
 admin.add_view(UserAdmin)
 admin.add_view(WorkoutAdmin)
 admin.add_view(ExerciseAdmin)

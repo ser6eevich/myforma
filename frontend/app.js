@@ -1478,9 +1478,17 @@ async function toggleFavorite(name, event) {
 }
 
 function selectExerciseFromList(name) {
-    document.getElementById('modal-exercise-name-input').value = name;
+    const input = document.getElementById('modal-exercise-name-input');
+    if (input) input.value = name;
+    
+    // Закрываем все промежуточные окна выбора
     closeExerciseSelectModal();
-    closeExerciseNameModal(true);
+    closeModal('modal-category-select');
+    
+    // Даем анимациям закрытия завершиться (400мс) перед открытием деталей
+    setTimeout(() => {
+        closeExerciseNameModal(true);
+    }, 450);
 }
 
 function closeExerciseSelectModal() {
