@@ -19,6 +19,7 @@ from sqladmin import Admin, ModelView
 from sqladmin.authentication import AuthenticationBackend
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
+from starlette.middleware.sessions import SessionMiddleware
 try:
     from .bot import bot, dp, send_notification
 except (ImportError, ValueError):
@@ -47,6 +48,73 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown(wait=False)
 
 app = FastAPI(lifespan=lifespan)
+
+# --- ADMIN PANEL ---
+# Секретный ключ для сессий (нужен для авторизации в админке)
+SECRET_KEY = os.getenv("SECRET_KEY", "super-secret-key-for-myforma-123")
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+
+class UserAdmin(ModelView, model=db.User):
+    column_list = [db.User.telegram_id, db.User.username, db.User.first_name]
+    name = "Пользователь"
+    name_plural = "Пользователи"
+    icon = "fa-solid fa-user"
+
+class WorkoutAdmin(ModelView, model=db.Workout):
+    column_list = [db.Workout.id, db.Workout.telegram_id, db.Workout.date]
+    name = "Тренировка"
+    name_plural = "Тренировки"
+    icon = "fa-solid fa-calendar-check"
+
+class ExerciseAdmin(ModelView, model=db.Exercise):
+    column_list = [db.Exercise.id, db.Exercise.name, db.Exercise.workout_id]
+    name = "Упражнение"
+    name_plural = "Упражнения"
+    icon = "fa-solid fa-dumbbell"
+
+class SetAdmin(ModelView, model=db.Set):
+    column_list = [db.Set.id, db.Set.exercise_id, db.Set.weight, db.Set.reps]
+    name = "Подход"
+    name_plural = "Подходы"
+    icon = "fa-solid fa-list-ol"
+
+class WeightAdmin(ModelView, model=db.WeightEntry):
+    column_list = [db.WeightEntry.id, db.WeightEntry.user_id, db.WeightEntry.weight, db.WeightEntry.date]
+    name = "Запись веса"
+    name_plural = "Записи веса"
+    icon = "fa-solid fa-weight-scale"
+
+class CatalogAdmin(ModelView, model=db.ExerciseCatalog):
+    column_list = [db.ExerciseCatalog.id, db.ExerciseCatalog.name, db.ExerciseCatalog.category]
+    category = "Справочники"
+    name = "Каталог"
+    name_plural = "Каталог упражнений"
+    icon = "fa-solid fa-book"
+
+class AdminAuth(AuthenticationBackend):
+    async def login(self, request: Request) -> bool:
+        form = await request.form()
+        username, password = form.get("username"), form.get("password")
+        if username == os.getenv("ADMIN_USERNAME") and password == os.getenv("ADMIN_PASSWORD"):
+            request.session.update({"token": "authenticated"})
+            return True
+        return False
+
+    async def logout(self, request: Request) -> bool:
+        request.session.clear()
+        return True
+
+    async def authenticate(self, request: Request) -> bool:
+        return request.session.get("token") == "authenticated"
+
+authentication_backend = AdminAuth(secret_key=SECRET_KEY)
+admin = Admin(app, db.engine, title="MyForma Admin", authentication_backend=authentication_backend)
+admin.add_view(UserAdmin)
+admin.add_view(WorkoutAdmin)
+admin.add_view(ExerciseAdmin)
+admin.add_view(SetAdmin)
+admin.add_view(WeightAdmin)
+admin.add_view(CatalogAdmin)
 
 # Разрешаем CORS для локальной разработки
 app.add_middleware(
@@ -95,6 +163,13 @@ class ExerciseCatalogOut(BaseModel):
     id: int
     name: str
     category: str
+    model_config = ConfigDict(from_attributes=True)
+
+class WeightOut(BaseModel):
+    id: int
+    user_id: int
+    weight: float
+    date: str
     model_config = ConfigDict(from_attributes=True)
 
 class UserFavoriteCreate(BaseModel):
@@ -401,6 +476,9 @@ def init_app(telegram_id: int, date: str, database: Session = Depends(get_db)):
         db.WeightEntry.user_id == telegram_id
     ).order_by(db.WeightEntry.date.desc()).all()
     
+    # ПРИНУДИТЕЛЬНАЯ СЕРИАЛИЗАЦИЯ (для исправления бага на Dash)
+    weights_out = [WeightOut.model_validate(w).model_dump() for w in weights]
+    
     # 3. Exercise Catalog
     catalog = database.query(db.ExerciseCatalog).all()
     
@@ -435,7 +513,7 @@ def init_app(telegram_id: int, date: str, database: Session = Depends(get_db)):
 
     return {
         "workouts": workouts,
-        "weights": weights,
+        "weights": weights_out,
         "catalog": [{"name": c.name, "category": c.category} for c in catalog],
         "favorites": fav_names,
         "streak": {"streak": streak, "last_7_days": last_7_days}
@@ -524,68 +602,7 @@ scheduler.add_job(
 
 # (Удалено, так как перенесено выше)
 
-# --- ADMIN PANEL ---
-class UserAdmin(ModelView, model=db.User):
-    column_list = [db.User.telegram_id, db.User.username, db.User.first_name]
-    name = "Пользователь"
-    name_plural = "Пользователи"
-    icon = "fa-solid fa-user"
-
-class WorkoutAdmin(ModelView, model=db.Workout):
-    column_list = [db.Workout.id, db.Workout.telegram_id, db.Workout.date]
-    name = "Тренировка"
-    name_plural = "Тренировки"
-    icon = "fa-solid fa-calendar-check"
-
-class ExerciseAdmin(ModelView, model=db.Exercise):
-    column_list = [db.Exercise.id, db.Exercise.name, db.Exercise.workout_id]
-    name = "Упражнение"
-    name_plural = "Упражнения"
-    icon = "fa-solid fa-dumbbell"
-
-class SetAdmin(ModelView, model=db.Set):
-    column_list = [db.Set.id, db.Set.exercise_id, db.Set.weight, db.Set.reps]
-    name = "Подход"
-    name_plural = "Подходы"
-    icon = "fa-solid fa-list-ol"
-
-class WeightAdmin(ModelView, model=db.WeightEntry):
-    column_list = [db.WeightEntry.id, db.WeightEntry.user_id, db.WeightEntry.weight, db.WeightEntry.date]
-    name = "Запись веса"
-    name_plural = "Записи веса"
-    icon = "fa-solid fa-weight-scale"
-
-class CatalogAdmin(ModelView, model=db.ExerciseCatalog):
-    column_list = [db.ExerciseCatalog.id, db.ExerciseCatalog.name, db.ExerciseCatalog.category]
-    category = "Справочники"
-    name = "Каталог"
-    name_plural = "Каталог упражнений"
-    icon = "fa-solid fa-book"
-
-class AdminAuth(AuthenticationBackend):
-    async def login(self, request: Request) -> bool:
-        form = await request.form()
-        username, password = form.get("username"), form.get("password")
-        if username == os.getenv("ADMIN_USERNAME") and password == os.getenv("ADMIN_PASSWORD"):
-            request.session.update({"token": "authenticated"})
-            return True
-        return False
-
-    async def logout(self, request: Request) -> bool:
-        request.session.clear()
-        return True
-
-    async def authenticate(self, request: Request) -> bool:
-        return request.session.get("token") == "authenticated"
-
-authentication_backend = AdminAuth(secret_key=os.getenv("SECRET_KEY"))
-admin = Admin(app, db.engine, title="MyForma Admin", authentication_backend=authentication_backend)
-admin.add_view(UserAdmin)
-admin.add_view(WorkoutAdmin)
-admin.add_view(ExerciseAdmin)
-admin.add_view(SetAdmin)
-admin.add_view(WeightAdmin)
-admin.add_view(CatalogAdmin)
+# Админка перенесена вверх для корректной регистрации путей
 
 # Раздача статики фронтенда
 # ВАЖНО: это должно быть в самом низу файла, после настройки Admin
