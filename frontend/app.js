@@ -14,7 +14,6 @@ tg.ready();
 const userId = tg.initDataUnsafe?.user?.id;
 
 // Блокировка входа вне Телеграма
-/*
 if (!tg.initData) {
     document.body.innerHTML = `
         <div class="fixed inset-0 bg-zinc-950 flex flex-col items-center justify-center text-center p-8 z-[9999]">
@@ -32,7 +31,6 @@ if (!tg.initData) {
     `;
     window.stop(); // Останавливаем дальнейшую загрузку
 }
-*/
 const API_URL = ""; // Пустая строка для относительных путей (работает везде)
 
 let currentDate = new Date().toISOString().split('T')[0];
@@ -74,31 +72,45 @@ async function initApp() {
     initProfile();
     initTouchEvents();
     
-    // Показываем онбординг только новым пользователям (один раз)
+    // Показываем онбординг только первым пользователям
     if (!localStorage.getItem('onboarding_done')) {
         startOnboarding();
     }
     
-    // Загружаем начальные данные перед показом дашборда
     const today = new Date().toISOString().split('T')[0];
-    await Promise.all([
-        loadWorkouts(), // По умолчанию грузит currentDate (который сегодня)
-        loadWeights(),
-        loadCatalog(),
-        loadFavorites()
-    ]);
     
-    todayExercises = [...currentExercises];
+    // ОПТИМИЗАЦИЯ: Один запрос вместо пяти
+    try {
+        const timestamp = Date.now();
+        const response = await fetch(`${API_URL}/init-app?telegram_id=${userId}&date=${today}&t=${timestamp}`);
+        if (response.ok) {
+            const data = await response.json();
+            currentExercises = data.workouts || [];
+            currentWeights = data.weights || [];
+            exerciseCatalog = data.catalog || [];
+            userFavorites = data.favorites || [];
+            
+            // Сохраняем стрик в глобальную переменную для дашборда
+            window.lastStreakData = data.streak;
+            
+            todayExercises = [...currentExercises];
+            workoutsLoaded = true;
+            weightsLoaded = true;
+        }
+    } catch (error) {
+        console.error("Init App error:", error);
+    }
+    
     showDashboard(); // Показывает дашборд при входе
 
-    // Скрываем Splash Screen плавно (даем 1с на "помигать" лоадером для красоты)
+    // Скрываем Splash Screen быстрее, так как данные уже есть
     setTimeout(() => {
         const splash = document.getElementById('splash-screen');
         if (splash) {
             splash.classList.add('fade-out');
             setTimeout(() => splash.remove(), 800);
         }
-    }, 1000);
+    }, 600);
     
     // Глобальный хак для предотвращения стягивания ТГ (плавный)
     ['exercises-scroll-area', 'weight-scroll-area'].forEach(id => {
@@ -852,16 +864,23 @@ async function updateActivityDots() {
     if (!container || !countEl) return;
 
     try {
-        const response = await fetch(`${API_URL}/user/streak?telegram_id=${userId}`);
-        if (response.ok) {
-            const data = await response.json();
-            
+        let data = window.lastStreakData;
+        
+        // Если данных в кэше нет (например, обновили страницу), запрашиваем
+        if (!data) {
+            const response = await fetch(`${API_URL}/user/streak?telegram_id=${userId}`);
+            if (response.ok) {
+                data = await response.json();
+            }
+        }
+        
+        if (data) {
             // Обновляем счетчик
             countEl.textContent = data.streak;
             
             // Обновляем точки
             container.innerHTML = '';
-            data.last_7_days.forEach(active => {
+            (data.last_7_days || []).forEach(active => {
                 const dot = document.createElement('div');
                 dot.className = `size-1.5 rounded-full ${active ? 'bg-primary' : 'bg-zinc-200 dark:bg-zinc-800'}`;
                 container.appendChild(dot);
@@ -1331,7 +1350,17 @@ const CATEGORY_ICONS = {
 };
 
 function showCategoryModal() {
+    const searchInput = document.getElementById('global-exercise-search');
+    if (searchInput) searchInput.value = '';
+    
+    const results = document.getElementById('global-search-results');
     const grid = document.getElementById('category-grid');
+    const customBtn = document.getElementById('btn-custom-exercise');
+    
+    if (results) results.classList.add('hidden');
+    if (grid) grid.classList.remove('hidden');
+    if (customBtn) customBtn.classList.remove('hidden');
+
     grid.innerHTML = '';
     const categories = [...new Set(exerciseCatalog.map(ex => ex.category))];
     
@@ -1442,6 +1471,61 @@ function selectExerciseFromList(name) {
 
 function closeExerciseSelectModal() {
     closeModal('modal-exercise-select');
+    // Сбрасываем глобальный поиск проекта если закрываем выбор
+    const q = document.getElementById('global-exercise-search');
+    if (q) q.value = '';
+}
+
+function filterGlobalExercises() {
+    const q = document.getElementById('global-exercise-search').value.toLowerCase();
+    const grid = document.getElementById('category-grid');
+    const results = document.getElementById('global-search-results');
+    const customBtn = document.getElementById('btn-custom-exercise');
+
+    if (!q) {
+        grid.classList.remove('hidden');
+        results.classList.add('hidden');
+        customBtn.classList.remove('hidden');
+        return;
+    }
+
+    grid.classList.add('hidden');
+    results.classList.remove('hidden');
+    customBtn.classList.add('hidden');
+
+    const filtered = exerciseCatalog.filter(ex => ex.name.toLowerCase().includes(q));
+    
+    results.innerHTML = '';
+    if (filtered.length === 0) {
+        results.innerHTML = '<div class="p-8 text-center text-zinc-500 text-sm italic">Ничего не найдено</div>';
+        return;
+    }
+
+    const sorted = [...filtered].sort((a,b) => {
+        const isAFav = userFavorites.includes(a.name);
+        const isBFav = userFavorites.includes(b.name);
+        if (isAFav && !isBFav) return -1;
+        if (!isAFav && isBFav) return 1;
+        return a.name.localeCompare(b.name);
+    });
+
+    sorted.forEach(ex => {
+        const isFav = userFavorites.includes(ex.name);
+        const row = document.createElement('div');
+        row.className = "flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors mb-2 animate-in fade-in slide-in-from-bottom-2 duration-300";
+        
+        row.innerHTML = `
+            <div class="flex-1 cursor-pointer" onclick="selectExerciseFromList('${ex.name}')">
+                <p class="text-[14px] font-bold text-zinc-800 dark:text-zinc-200">${ex.name}</p>
+                <p class="text-[10px] text-zinc-500 uppercase font-medium mt-0.5">${ex.category}</p>
+            </div>
+            <button onclick="toggleFavorite('${ex.name}', event)" class="p-2 -mr-2">
+                <span class="material-symbols-outlined text-[20px] ${isFav ? 'text-yellow-400' : 'text-zinc-300'}" 
+                    style="${isFav ? 'font-variation-settings: \'FILL\' 1' : ''}">star</span>
+            </button>
+        `;
+        results.appendChild(row);
+    });
 }
 
 function backToCategories() {

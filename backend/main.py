@@ -380,6 +380,58 @@ def get_streak(telegram_id: int, database: Session = Depends(get_db)):
         
     return {"streak": streak, "last_7_days": last_7_days}
 
+@app.get("/init-app")
+def init_app(telegram_id: int, date: str, database: Session = Depends(get_db)):
+    # 1. Workouts for specific date
+    workouts = database.query(db.Workout).filter(
+        db.Workout.telegram_id == telegram_id,
+        db.Workout.date == date
+    ).all()
+    
+    # 2. Weights (all)
+    weights = database.query(db.WeightEntry).filter(
+        db.WeightEntry.user_id == telegram_id
+    ).order_by(db.WeightEntry.date.desc()).all()
+    
+    # 3. Exercise Catalog
+    catalog = database.query(db.ExerciseCatalog).all()
+    
+    # 4. Favorites 
+    favorites = database.query(db.UserFavorite).filter(
+        db.UserFavorite.telegram_id == telegram_id
+    ).all()
+    fav_names = [f.name for f in favorites]
+    
+    # 5. Streak 
+    workout_dates = database.query(db.Workout.date).filter(
+        db.Workout.telegram_id == telegram_id
+    ).distinct().order_by(db.Workout.date.desc()).all()
+    
+    dates = [d[0] for d in workout_dates]
+    streak = 0
+    last_7_days = [False] * 7
+    if dates:
+        today = datetime.now().date()
+        yesterday = today - timedelta(days=1)
+        date_set = set(dates)
+        if today.isoformat() in date_set or yesterday.isoformat() in date_set:
+            curr = today if today.isoformat() in date_set else yesterday
+            while curr.isoformat() in date_set:
+                streak += 1
+                curr -= timedelta(days=1)
+        for i in range(6, -1, -1):
+            d = (today - timedelta(days=i)).isoformat()
+            last_7_days.append(d in date_set)
+        last_7_days = last_7_days[-7:]
+
+    return {
+        "workouts": workouts,
+        "weights": weights,
+        "catalog": [{"name": c.name, "category": c.category} for c in catalog],
+        "favorites": fav_names,
+        "streak": {"streak": streak, "last_7_days": last_7_days}
+    }
+
 # --- Логика уведомлений ---
 
 async def check_workout_inactivity():

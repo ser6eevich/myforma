@@ -917,19 +917,31 @@
     <!-- Modal: Category Selection -->
     <div id="modal-category-select"
         class="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm z-50 flex items-end justify-center hidden modal-base">
-        <div class="modal-content-base bg-white dark:bg-zinc-900 w-full max-w-xl mx-auto rounded-t-[32px] p-8 translate-y-full transition-all flex flex-col max-h-[85vh]">
-            <div class="flex justify-between items-center mb-6">
+        <div class="modal-content-base bg-white dark:bg-zinc-900 w-full max-w-xl mx-auto rounded-t-[32px] p-8 translate-y-full transition-all flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-extrabold text-zinc-900 dark:text-zinc-50">Выберите категорию</h2>
                 <button onclick="closeCategoryModal()" class="text-zinc-400 hover:text-zinc-600 transition-colors">
                     <span class="material-symbols-outlined">close</span>
                 </button>
+            </div>
+
+            <!-- Global Search -->
+            <div class="relative mb-6">
+                <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" style="font-size: 20px;">search</span>
+                <input type="text" id="global-exercise-search" oninput="filterGlobalExercises()"
+                    class="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-2xl py-3.5 pl-11 pr-4 text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    placeholder="Поиск по всем упражнениям...">
             </div>
             
             <div id="category-grid" class="grid grid-cols-2 gap-3 overflow-y-auto pb-6 pr-1 custom-scrollbar">
                 <!-- Категории будут добавлены через JS -->
             </div>
 
-            <button onclick="openCustomExerciseModal()" 
+            <div id="global-search-results" class="hidden space-y-1 overflow-y-auto flex-1 pr-1 custom-scrollbar pb-6">
+                <!-- Результаты глобального поиска -->
+            </div>
+
+            <button onclick="openCustomExerciseModal()" id="btn-custom-exercise"
                 class="w-full py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-bold rounded-2xl active:scale-95 transition-all text-sm mb-2 shadow-sm">
                 Свой вариант (вписать название)
             </button>
