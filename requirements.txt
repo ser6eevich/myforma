@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+sqlalchemy
+sqladmin
+wtforms
+itsdangerous
+openai
+python-dotenv
+apscheduler
+python-multipart
+aiogram

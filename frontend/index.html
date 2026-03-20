@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="ru" class="overscroll-none">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport" />
+    <title>Forma - Журнал тренировок</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Load Tailwind CSS v3 with plugins -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <!-- Load Manrope Font -->
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1754cf',
+                        surface: '#F9FAFB',
+                        card: '#FFFFFF',
+                    },
+                    fontFamily: {
+                        sans: ['Manrope', 'sans-serif'],
+                    },
+                    borderRadius: {
+                        'custom': '12px',
+                        'theme': '8px',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #F9FAFB;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            transition: background-color 0.3s ease;
+        }
+
+        html,
+        body {
+            overflow: hidden;
+            height: 100vh;
+            height: -webkit-fill-available;
+            position: fixed;
+            width: 100%;
+            touch-action: none;
+        }
+
+        :root {
+            --primary: #1754cf;
+            --primary-light: #eff6ff;
+            --tg-theme-bg-color: #ffffff;
+            --safe-area-inset-top: env(safe-area-inset-top);
+            --safe-area-inset-bottom: env(safe-area-inset-bottom);
+        }
+
+        /* --- BEAUTIFUL ANIMATIONS --- */
+        .animate-slide-up {
+            animation: slideUp 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.15) forwards;
+        }
+
+        .animate-slide-down {
+            animation: slideDown 0.3s cubic-bezier(0.18, 0.89, 0.32, 1) forwards;
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(100%); opacity: 0; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .modal-active {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+            z-index: 70 !important;
+        }
+
+        .modal-active > div {
+            transform: translateY(0) scale(1) !important;
+            opacity: 1 !important;
+        }
+
+        /* Smooth page transitions */
+        .page-header-transition {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* --- STYLES --- */
+        * {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        *::-webkit-scrollbar {
+            display: none;
+        }
+
+        .calendar-shadow {
+            box-shadow: 0 4px 20px -2px rgba(23, 84, 207, 0.15);
+        }
+
+        .expandable-wrapper {
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+        }
+
+        .expanded .expandable-wrapper {
+            grid-template-rows: 1fr;
+        }
+
+        .expandable-content {
+            overflow: hidden;
+            opacity: 0;
+            transform: scale(0.98) translateY(-4px);
+            transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+        }
+
+        .expanded .expandable-content {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+
+        /* Cascade fade-in for sets */
+        .expanded .expandable-content>div>div {
+            animation: slideUpFade 0.4s forwards;
+            opacity: 0;
+        }
+
+        .expanded .expandable-content>div>div:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .expanded .expandable-content>div>div:nth-child(2) {
+            animation-delay: 0.15s;
+        }
+
+        .expanded .expandable-content>div>div:nth-child(3) {
+            animation-delay: 0.2s;
+        }
+
+        .expanded .expandable-content>div>div:nth-child(4) {
+            animation-delay: 0.25s;
+        }
+
+        .expanded .expandable-content>div>div:nth-child(n+5) {
+            animation-delay: 0.3s;
+        }
+
+        .expanded .chevron-icon {
+            transform: rotate(180deg) scale(1.2);
+            color: var(--primary);
+        }
+
+        /* Стили для страницы редактирования */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        input[type=number] {
+            -webkit-appearance: textfield;
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+
+        .set-row {
+            transition: all 0.2s ease-in-out;
+        }
+
+        /* Прячем кнопку удаления для первого подхода (обязательного) */
+        #sets-edit-container > .set-row:first-child button[onclick="removeRow(this)"] {
+            display: none;
+        }
+
+        .swipe-container {
+            position: relative;
+            overflow: hidden;
+            margin-left: -1.5rem;
+            /* -px-6 из main */
+            margin-right: -1.5rem;
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+        }
+
+        .swipe-actions {
+            position: absolute;
+            right: 1.5rem;
+            /* px-6 */
+            top: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            z-index: 1;
+        }
+
+        .swipe-content {
+            position: relative;
+            z-index: 2;
+            transition: transform 0.2s ease-out;
+            background: white;
+        }
+
+        .action-edit {
+            background-color: #f1f5f9;
+            color: #1754cf;
+        }
+
+        .action-delete {
+            background-color: #fee2e2;
+            color: #ef4444;
+        }
+
+        .action-btn {
+            height: 100%;
+            width: 70px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.2s;
+        }
+
+        .action-btn span {
+            font-size: 20px;
+        }
+
+        .action-btn label {
+            font-size: 10px;
+            font-weight: bold;
+            margin-top: 4px;
+        }
+
+        /* Убираем радиус справа у кнопок, если они в конце */
+        .action-delete {
+            border-top-right-radius: 12px;
+            border-bottom-right-radius: 12px;
+        }
+
+        /* Modern Dashboard Effects */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .dark .glass-card {
+            background: rgba(24, 24, 27, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .bg-mesh {
+            background-color: #F9FAFB;
+            background-image:
+                radial-gradient(at 0% 0%, rgba(23, 84, 207, 0.05) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(23, 84, 207, 0.03) 0px, transparent 50%);
+        }
+
+        .dark .bg-mesh {
+            background-color: #09090b;
+            background-image:
+                radial-gradient(at 0% 0%, rgba(23, 84, 207, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(23, 84, 207, 0.05) 0px, transparent 50%);
+        }
+
+        .view-pane {
+            position: fixed;
+            inset: 0;
+            background-color: #F9FAFB;
+            z-index: 10;
+            transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.3s ease;
+            overflow-y: auto;
+            touch-action: pan-y;
+            padding-bottom: 80px;
+        }
+
+        .dark .view-pane {
+            background-color: #09090b;
+        }
+
+        .view-pane.hidden-pane {
+            transform: translateY(30px);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .view-pane.active-pane {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Специальный стиль для деталей (выплывает снизу) */
+        #view-details {
+            z-index: 60;
+            transform: translateY(100%);
+            transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+
+        #view-details.active-pane {
+            transform: translateY(0);
+        }
+
+        /* Улучшенные модалки */
+        .modal-base {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-content-base {
+            transition: transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.15);
+        }
+
+        /* Custom scrollbar for better look */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(0,0,0,0.1);
+            border-radius: 10px;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined' !important;
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block !important;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            font-feature-settings: 'liga';
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .chart-line-anim {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: dash 2s ease-out forwards;
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        #journal-slider {
+            will-change: transform;
+            backface-visibility: hidden;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        :root {
+            /* Переменные Telegram для безопасной зоны на iOS/Android с вырезом */
+            --tg-safe-top: var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px));
+        }
+
+        .header-safe {
+            /* 68px - гарантированно хватает, чтобы перекрыть нативные кнопки ТГ 'Закрыть' и '...' */
+            padding-top: calc(max(var(--tg-safe-top), 0px) + 68px) !important;
+        }
+
+        /* Animation System */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideUpFade {
+            from {
+                opacity: 0;
+                transform: translateY(16px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .animate-fade {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+
+        .animate-slide-up {
+            animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .animate-scale {
+            animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        .transition-view {
+            transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .scrollable-y {
+            overflow-y: auto;
+            touch-action: pan-y;
+            overscroll-behavior-y: contain;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Staggered children */
+        .stagger-children>* {
+            opacity: 0;
+        }
+
+        .stagger-children>*:nth-child(1) {
+            animation: slideUpFade 0.4s 0.05s ease-out forwards;
+        }
+
+        .stagger-children>*:nth-child(2) {
+            animation: slideUpFade 0.4s 0.1s ease-out forwards;
+        }
+
+        .stagger-children>*:nth-child(3) {
+            animation: slideUpFade 0.4s 0.15s ease-out forwards;
+        }
+
+        .stagger-children>*:nth-child(4) {
+            animation: slideUpFade 0.4s 0.2s ease-out forwards;
+        }
+
+        .stagger-children>*:nth-child(5) {
+            animation: slideUpFade 0.4s 0.25s ease-out forwards;
+        }
+
+        .stagger-children>*:nth-child(n+6) {
+            animation: slideUpFade 0.4s 0.3s ease-out forwards;
+        }
+
+        /* ONBOARDING STORIES */
+        .story-bar {
+            height: 4px;
+            background: rgba(0, 0, 0, 0.08);
+            /* Светло-серый фон */
+            border-radius: 2px;
+            overflow: hidden;
+            flex-grow: 1;
+        }
+
+        .story-progress {
+            height: 100%;
+            background: #1754cf;
+            /* Насыщенный синий */
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        .story-slide {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: scale(0.95);
+        }
+
+        .story-slide.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1);
+            z-index: 50;
+        }
+
+        #onboarding-overlay {
+            z-index: 99999;
+            background: #F9FAFB;
+            user-select: none;
+            -webkit-user-select: none;
+            transition: opacity 0.8s ease, transform 0.8s ease;
+        }
+
+        #onboarding-overlay.closing {
+            opacity: 0;
+            transform: scale(1.1);
+            pointer-events: none;
+        }
+
+        .story-img-placeholder {
+            background: linear-gradient(45deg, rgba(23, 84, 207, 0.2) 0%, rgba(23, 84, 207, 0.05) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+
+<body
+    class="bg-surface dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 antialiased overflow-hidden overscroll-none selection:bg-primary/20">
+    <!-- DASHBOARD VIEW -->
+    <div id="view-dashboard" class="view-pane active-pane bg-mesh flex flex-col transition-colors">
+        <header class="pt-8 pb-4 px-6 shrink-0 header-safe">
+            <div class="flex items-center justify-between mb-2">
+                <div>
+                    <h1 class="text-2xl font-extrabold text-zinc-900 dark:text-zinc-50">Дашборд</h1>
+                    <p id="dash-date"
+                        class="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mt-0.5 opacity-80">
+                        Загрузка даты...</p>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex-grow scrollable-y pb-32">
+            <main class="px-6 space-y-6">
+                <!-- STATS MOSAIC -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="glass-card rounded-[24px] p-5 flex flex-col justify-between h-32">
+                        <span class="material-symbols-outlined text-primary text-xl">monitor_weight</span>
+                        <div>
+                            <h3 class="text-2xl font-black text-zinc-900 dark:text-zinc-50"><span
+                                    id="dash-weight">--</span><span
+                                    class="text-sm font-medium text-zinc-400 ml-1">кг</span></h3>
+                            <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Текущий вес
+                            </p>
+                        </div>
+                    </div>
+                    <div class="glass-card rounded-[24px] p-5 flex flex-col justify-between h-32">
+                        <span class="material-symbols-outlined text-orange-500 text-xl">fire_hydrant</span>
+                        <div>
+                            <h3 class="text-2xl font-black text-zinc-900 dark:text-zinc-50"><span
+                                    id="dash-volume">0</span><span
+                                    class="text-sm font-medium text-zinc-400 ml-1">кг</span></h3>
+                            <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Объем сегодня
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card rounded-[24px] p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Активность</p>
+                        <div class="flex gap-1" id="dash-streak-dots">
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div
+                            class="size-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400">
+                            <span class="material-symbols-outlined">calendar_month</span>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-zinc-900 dark:text-zinc-100 text-sm">Твоя серия: <span
+                                    class="text-primary" id="dash-streak-count">0</span> дн.</h4>
+                            <p class="text-xs text-zinc-500">У тебя отлично получается!</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI INSIGHT CARD (Moved to bottom) -->
+                <div class="glass-card rounded-[32px] p-6 relative overflow-hidden group">
+                    <div
+                        class="absolute -right-4 -top-4 size-32 bg-primary/10 blur-3xl group-hover:bg-primary/20 transition-colors">
+                    </div>
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span
+                                class="text-[10px] font-bold bg-primary text-white px-2 py-0.5 rounded-full uppercase tracking-wider">Анализ</span>
+                        </div>
+                        <p id="ai-insight-text" class="text-zinc-800 dark:text-zinc-200 font-medium leading-relaxed">
+                            Анализирую данные твоих тренировок...
+                        </p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Section: Journal (Slider Wrapper) -->
+    <div id="journal-wrapper"
+        class="view-pane hidden-pane bg-mesh flex flex-col">
+        <!-- SHARED FIXED HEADER -->
+        <header id="journal-fixed-header"
+            class="pb-2 bg-surface dark:bg-zinc-950 transition-colors header-safe shrink-0">
+            <div class="flex items-center justify-between px-6 mb-4 mt-4">
+                <div id="journal-header-left" class="size-10 flex items-center justify-center">
+                    <!-- Dynamic logic in app.js -->
+                </div>
+                <h1 id="journal-header-title"
+                    class="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">Журнал тренировок</h1>
+                <div id="journal-header-right" class="size-10 flex items-center justify-center">
+                    <!-- Dynamic logic in app.js -->
+                </div>
+            </div>
+            <input type="date" id="date-picker-input" class="absolute pointer-events-none opacity-0 size-0"
+                onchange="selectDate(this.value)">
+        </header>
+
+        <div id="journal-slider"
+            class="flex transition-transform duration-300 ease-out w-[200%] h-full flex-grow overflow-hidden">
+
+            <!-- Page 1: Workout Journal -->
+            <div id="view-journal" class="w-1/2 shrink-0 h-full flex flex-col overflow-hidden">
+                <!-- Календарь -->
+                <div class="px-6 mb-4 shrink-0">
+                    <div class="flex justify-between pb-2" id="calendar-bar">
+                        <!-- Генерируется динамически в app.js -->
+                    </div>
+                </div>
+
+                <div id="exercises-scroll-area" class="flex-grow scrollable-y">
+                    <main class="px-6 py-4">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest"
+                                id="workout-title">Сегодняшняя тренировка</h2>
+                            <div class="flex items-center gap-4">
+                                <span class="text-xs text-primary font-semibold" id="exercises-count">0
+                                    Упражнений</span>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3" id="exercises-container">
+                            <!-- Упражнения -->
+                        </div>
+                    </main>
+                </div>
+            </div>
+
+            <!-- Page 2: Weight Journal -->
+            <div id="view-weight"
+                class="w-1/2 shrink-0 h-full flex flex-col overflow-hidden dark:bg-zinc-950 transition-colors">
+                <div id="weight-scroll-area" class="flex-grow scrollable-y">
+                    <main class="px-6 py-4">
+                        <div id="weight-overview-container" class="mb-2 px-2">
+                            <p class="text-zinc-400 dark:text-zinc-500 text-sm font-medium mb-1">Текущий вес</p>
+                            <div class="flex items-baseline gap-2 mb-2">
+                                <span id="current-weight-display"
+                                    class="text-4xl font-extrabold tracking-tight dark:text-zinc-50">--</span>
+                                <span class="text-zinc-400 dark:text-zinc-500 font-bold text-lg uppercase">кг</span>
+                            </div>
+                            <div id="weight-trend-container"
+                                class="flex items-center gap-1 text-green-500 font-bold text-sm">
+                            </div>
+                        </div>
+
+                        <h2
+                            class="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-3 ml-3">
+                            График прогресса</h2>
+                        <div id="weight-chart-container" class="mb-4 -mx-2 px-1">
+                        </div>
+
+                        <h2
+                            class="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-3 ml-1">
+                            История измерений</h2>
+                        <div class="space-y-3" id="weight-history-container">
+                        </div>
+                        <button id="btn-see-all-weights" onclick="showFullWeightHistory()"
+                            class="w-full mt-6 py-3.5 bg-blue-50/50 dark:bg-blue-900/20 text-primary dark:text-blue-400 font-bold text-[11px] uppercase tracking-widest rounded-2xl hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all hidden">
+                            Смотреть все
+                        </button>
+                    </main>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- VIEW: EXERCISE DETAILS / EDITOR -->
+    <div id="view-details"
+        class="view-pane hidden-pane fixed inset-0 bg-white dark:bg-zinc-950 z-[60] flex flex-col transition-transform duration-500 overflow-hidden">
+        <header
+            class="sticky top-0 z-10 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md border-b border-zinc-100 dark:border-zinc-800 px-4 pb-4 flex items-center justify-between transition-colors header-safe">
+            <button onclick="showJournal()"
+                class="p-2 -ml-2 text-zinc-500 dark:text-zinc-400 hover:text-primary transition-colors flex items-center justify-center">
+                <span class="material-symbols-outlined !text-2xl">chevron_left</span>
+            </button>
+            <div class="flex-1 px-4">
+                <input type="text" id="edit-exercise-name-input"
+                    class="w-full bg-transparent border-none text-xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50 focus:ring-0 p-0"
+                    placeholder="Название упражнения">
+            </div>
+            <button id="btn-delete-exercise" onclick="deleteCurrentExercise()"
+                class="p-2 -mr-2 text-red-500 hover:text-red-700 transition-colors flex items-center justify-center"
+                title="Удалить упражнение">
+                <span class="material-symbols-outlined !text-xl">delete</span>
+            </button>
+        </header>
+
+        <main class="max-w-xl mx-auto px-4 py-6 pb-40 scrollable-y">
+            <div
+                class="grid grid-cols-12 gap-2 mb-3 px-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                <div class="col-span-2 text-center flex items-center justify-center">
+                    <span class="material-symbols-outlined !text-sm">format_list_numbered</span>
+                </div>
+                <div class="col-span-4 text-center flex items-center justify-center gap-1">
+                    <span class="material-symbols-outlined !text-sm">fitness_center</span>
+                </div>
+                <div class="col-span-4 text-center flex items-center justify-center gap-1">
+                    <span class="material-symbols-outlined !text-sm">rebase_edit</span>
+                </div>
+                <div class="col-span-2"></div>
+            </div>
+
+            <div class="space-y-3" id="sets-edit-container">
+            </div>
+
+            <div class="mt-6 flex justify-center">
+                <button onclick="addNewSetRow()"
+                    class="flex items-center gap-2 px-6 py-3 text-sm font-bold text-primary border-2 border-primary/10 rounded-theme hover:bg-primary/5 active:scale-95 transition-all">
+                    <span class="material-symbols-outlined">add</span>
+                    ДОБАВИТЬ ПОДХОД
+                </button>
+            </div>
+
+            <div class="mt-20 mb-32 px-6">
+                <button id="btn-save-exercise" onclick="saveChanges()"
+                    class="w-full py-4 bg-primary text-white font-bold rounded-theme shadow-lg shadow-primary/20 hover:opacity-90 active:scale-[0.98] transition-all tracking-wide uppercase text-sm flex items-center justify-center">
+                    СОХРАНИТЬ ИЗМЕНЕНИЯ
+                </button>
+            </main>
+        </div>
+
+    <!-- View 4: Profile -->
+    <div id="view-profile"
+        class="view-pane hidden-pane fixed inset-0 bg-white dark:bg-zinc-950 flex flex-col overflow-hidden transition-colors">
+        <header class="flex items-center justify-center px-6 pb-2 header-safe">
+            <h1 class="text-xl font-bold tracking-tight dark:text-zinc-50">Профиль</h1>
+        </header>
+
+        <div class="flex flex-col items-center px-6 py-4">
+            <div class="relative group">
+                <div
+                    class="size-32 rounded-full p-1 bg-blue-50 dark:bg-blue-900/20 border-2 border-primary/20 flex items-center justify-center">
+                    <div id="profile-avatar-container"
+                        class="w-full h-full rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center overflow-hidden transition-colors relative">
+                        <span id="profile-avatar-icon"
+                            class="material-symbols-outlined text-5xl text-white dark:text-zinc-500">person</span>
+                        <img id="profile-avatar-img" src="" class="hidden absolute inset-0 w-full h-full object-cover"
+                            alt="Profile Photo">
+                    </div>
+                </div>
+                <button
+                    class="absolute bottom-1 right-1 size-8 bg-primary rounded-full flex items-center justify-center text-white shadow-lg border-2 border-white dark:border-zinc-950">
+                    <span class="material-symbols-outlined text-sm">edit</span>
+                </button>
+            </div>
+            <div class="mt-4 text-center">
+                <h2 class="text-xl font-extrabold tracking-tight dark:text-zinc-50" id="profile-username">@username</h2>
+            </div>
+        </div>
+
+        <div class="px-6 mt-4">
+            <p class="text-[11px] uppercase tracking-[0.2em] font-bold text-zinc-400 dark:text-zinc-500 mb-4 ml-1">
+                Настройки интерфейса</p>
+            <div class="space-y-2">
+                <div
+                    class="flex items-center justify-between p-4 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-100 dark:border-zinc-700 transition-colors">
+                    <div class="flex items-center gap-4">
+                        <div class="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                            <span class="material-symbols-outlined" style="font-size: 20px;">notifications</span>
+                        </div>
+                        <span class="font-medium text-[15px] dark:text-zinc-200">Уведомления</span>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input checked="" class="sr-only peer" type="checkbox" value="" />
+                        <div
+                            class="w-11 h-6 bg-zinc-200 dark:bg-zinc-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-primary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all">
+                        </div>
+                    </label>
+                </div>
+                <div
+                    class="flex items-center justify-between p-4 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-100 dark:border-zinc-700 transition-colors">
+                    <div class="flex items-center gap-4">
+                        <div
+                            class="size-10 rounded-xl bg-zinc-100 dark:bg-zinc-700 flex items-center justify-center text-zinc-600 dark:text-zinc-300 transition-colors">
+                            <span class="material-symbols-outlined">dark_mode</span>
+                        </div>
+                        <span class="font-medium text-[15px] dark:text-zinc-200">Темная тема</span>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input id="theme-toggle" class="sr-only peer" type="checkbox" value=""
+                            onchange="toggleTheme()" />
+                        <div
+                            class="w-11 h-6 bg-zinc-200 dark:bg-zinc-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-primary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all">
+                        </div>
+                    </label>
+                </div>
+            </div>
+            <button
+                class="w-full mt-10 py-4 px-6 flex items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                <span class="material-symbols-outlined text-xl">help_outline</span>
+                <span class="font-medium">Служба поддержки</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Tab Bar -->
+    <!-- Bottom Navigation Pill -->
+    <nav id="nav-pill"
+        class="fixed left-1/2 -translate-x-1/2 bottom-[calc(max(env(safe-area-inset-bottom,16px),16px)+24px)] bg-zinc-950 dark:bg-zinc-900 rounded-[32px] p-2 flex items-center justify-center gap-4 shadow-2xl shadow-black/40 z-50 transition-all w-max border border-zinc-800/50 hidden">
+        <button onclick="showDashboard()" id="nav-dashboard"
+            class="relative flex items-center justify-center size-[52px] rounded-full text-zinc-400 hover:text-white transition-all duration-300">
+            <span class="material-symbols-outlined"
+                style="font-size: 24px; font-variation-settings: 'wght' 500, 'FILL' 0;">grid_view</span>
+        </button>
+        <button onclick="showJournal()" id="nav-journal"
+            class="relative flex items-center justify-center size-[52px] rounded-full text-zinc-400 hover:text-white transition-all duration-300">
+            <span class="material-symbols-outlined"
+                style="font-size: 24px; font-variation-settings: 'wght' 500, 'FILL' 0;">event_note</span>
+        </button>
+        <button onclick="showProfile()" id="nav-profile"
+            class="relative flex items-center justify-center size-[52px] rounded-full text-zinc-400 hover:text-white transition-all duration-300">
+            <span class="material-symbols-outlined"
+                style="font-size: 24px; font-variation-settings: 'wght' 500, 'FILL' 0;">person</span>
+        </button>
+    </nav>
+
+    <!-- Custom Confirm Modal -->
+    <div id="custom-confirm"
+        class="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-zinc-950/60 backdrop-blur-sm hidden modal-base">
+        <div
+            class="modal-content-base bg-white dark:bg-zinc-800 w-full max-w-xs rounded-3xl p-6 shadow-2xl overflow-hidden transition-colors scale-90 opacity-0">
+            <div class="flex flex-col items-center text-center">
+                <div
+                    class="size-16 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-full flex items-center justify-center mb-4">
+                    <span class="material-symbols-outlined text-3xl">delete</span>
+                </div>
+                <h3 class="text-xl font-extrabold text-zinc-900 dark:text-zinc-50 mb-2">Удалить?</h3>
+                <p class="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed mb-8">Вы уверены, что хотите удалить
+                    это упражнение? Это действие нельзя отменить.</p>
+
+                <div class="flex gap-3 w-full">
+                    <button id="confirm-cancel"
+                        class="flex-1 py-3.5 bg-zinc-100 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 font-bold rounded-2xl active:scale-95 transition-all text-sm uppercase tracking-wide">
+                        Отмена
+                    </button>
+                    <button id="confirm-ok"
+                        class="flex-1 py-3.5 bg-red-500 text-white font-bold rounded-2xl shadow-lg shadow-red-200 dark:shadow-red-900/20 active:scale-95 transition-all text-sm uppercase tracking-wide">
+                        Удалить
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=2"></script>
+    <!-- Modal: Category Selection -->
+    <div id="modal-category-select"
+        class="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm z-50 flex items-end justify-center hidden modal-base">
+        <div class="modal-content-base bg-white dark:bg-zinc-900 w-full max-w-xl mx-auto rounded-t-[32px] p-8 translate-y-full transition-all flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-extrabold text-zinc-900 dark:text-zinc-50">Выберите категорию</h2>
+                <button onclick="closeCategoryModal()" class="text-zinc-400 hover:text-zinc-600 transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            
+            <div id="category-grid" class="grid grid-cols-2 gap-3 overflow-y-auto pb-6 pr-1 custom-scrollbar">
+                <!-- Категории будут добавлены через JS -->
+            </div>
+
+            <button onclick="openCustomExerciseModal()" 
+                class="w-full py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-bold rounded-2xl active:scale-95 transition-all text-sm mb-2 shadow-sm">
+                Свой вариант (вписать название)
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal: Exercise Selection -->
+    <div id="modal-exercise-select"
+        class="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm z-50 flex items-end justify-center hidden modal-base">
+        <div class="modal-content-base bg-white dark:bg-zinc-900 w-full max-w-xl mx-auto rounded-t-[32px] p-8 translate-y-full transition-all flex flex-col h-[90vh]">
+            <div class="flex justify-between items-center mb-4">
+                <button onclick="backToCategories()" class="text-zinc-500 flex items-center gap-1 font-bold text-sm">
+                    <span class="material-symbols-outlined">arrow_back</span> Назад
+                </button>
+                <h2 id="selected-category-title" class="text-lg font-extrabold text-zinc-900 dark:text-zinc-50">Упражнения</h2>
+                <button onclick="closeExerciseSelectModal()" class="text-zinc-400">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="relative mb-6">
+                <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" style="font-size: 20px;">search</span>
+                <input type="text" id="exercise-search-input" oninput="filterExercisesList()"
+                    class="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-2xl py-3.5 pl-11 pr-4 text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    placeholder="Поиск упражнения...">
+            </div>
+            
+            <div id="exercise-list-container" class="space-y-1 overflow-y-auto flex-1 pr-1 custom-scrollbar pb-6">
+                <!-- Список упражнений будет здесь -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Custom Exercise Name (Old modal modified) -->
+    <div id="modal-exercise-name"
+        class="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm z-50 flex items-center justify-center hidden modal-base">
+        <div class="p-6 w-full max-w-sm">
+            <div class="modal-content-base bg-white dark:bg-zinc-800 rounded-[32px] p-8 shadow-2xl scale-90 opacity-0 transition-all relative overflow-hidden">
+                <h2 id="exercise-modal-title" class="text-xl font-extrabold text-zinc-900 dark:text-zinc-50 mb-2 text-center">Новое упражнение</h2>
+                <p class="text-zinc-400 dark:text-zinc-500 text-xs text-center mb-6">Введите название вручную</p>
+
+                <input type="text" id="modal-exercise-name-input"
+                    class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-50 text-center rounded-2xl py-3 px-4 font-bold focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all mb-6"
+                    placeholder="Например: Жим лежа">
+
+                <div class="flex gap-3 w-full">
+                    <button onclick="closeExerciseNameModal(false)"
+                        class="flex-1 py-3.5 bg-zinc-100 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 font-bold rounded-2xl active:scale-95 transition-all text-sm tracking-wide">
+                        Отмена
+                    </button>
+                    <button onclick="closeExerciseNameModal(true)"
+                        class="flex-1 py-3.5 bg-primary text-white font-bold rounded-2xl shadow-lg shadow-primary/20 active:scale-95 transition-all text-sm tracking-wide">
+                        Готово
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Modal: Add Weight -->
+    <div id="modal-weight"
+        class="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm z-50 flex items-end justify-center hidden modal-base">
+        <div
+            class="modal-content-base bg-white dark:bg-zinc-800 w-full max-w-xl mx-auto rounded-t-[32px] p-8 translate-y-full transition-all">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-xl font-extrabold text-zinc-900 dark:text-zinc-50">Ваш вес</h2>
+                <button onclick="closeWeightModal()"
+                    class="text-zinc-300 dark:text-zinc-500 hover:text-red-500 transition-colors"><span
+                        class="material-symbols-outlined">close</span></button>
+            </div>
+            <div class="flex flex-col items-center mb-8">
+                <div class="flex items-baseline gap-3">
+                    <input id="input-weight" type="number" step="0.1" inputmode="decimal"
+                        class="w-40 text-6xl font-black text-zinc-900 dark:text-zinc-50 bg-transparent border-none focus:ring-0 p-0"
+                        placeholder="00.0">
+                    <span class="text-2xl font-extrabold text-zinc-200 dark:text-zinc-700">КГ</span>
+                </div>
+            </div>
+            <button id="btn-save-weight" onclick="saveWeight()"
+                class="w-full py-3.5 bg-primary text-white rounded-2xl font-bold text-sm shadow-xl shadow-primary/20 hover:opacity-90 active:scale-[0.98] transition-all mb-4 flex items-center justify-center">
+                СОХРАНИТЬ ВЕС
+            </button>
+        </div>
+    </div>
+    <!-- Modal: Weight History -->
+    <div id="modal-weight-history"
+        class="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm z-50 flex items-end justify-center hidden modal-base">
+        <div
+            class="modal-content-base bg-zinc-50 dark:bg-zinc-900 w-full max-w-xl mx-auto rounded-t-[32px] p-8 translate-y-full transition-all flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-extrabold text-zinc-900 dark:text-zinc-50">История веса</h2>
+                <button onclick="closeWeightHistoryModal()"
+                    class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"><span
+                        class="material-symbols-outlined">close</span></button>
+            </div>
+            <div id="full-weight-history-container" class="space-y-3 overflow-y-auto flex-1 pr-1 custom-scrollbar pb-4">
+                <!-- Полный список весов будет здесь -->
+            </div>
+        </div>
+    </div>
+    <!-- ONBOARDING OVERLAY (Instagram Stories Style) -->
+    <div id="onboarding-overlay" class="fixed inset-0 hidden flex flex-col p-4 bg-[#F9FAFB]">
+        <!-- Progress Bars -->
+        <div class="flex gap-1.5 mt-20 px-4 mb-4 shrink-0">
+            <div class="story-bar">
+                <div id="p-0" class="story-progress"></div>
+            </div>
+            <div class="story-bar">
+                <div id="p-1" class="story-progress"></div>
+            </div>
+            <div class="story-bar">
+                <div id="p-2" class="story-progress"></div>
+            </div>
+            <div class="story-bar">
+                <div id="p-3" class="story-progress"></div>
+            </div>
+        </div>
+
+        <div class="flex-grow relative px-4 overflow-hidden">
+            <!-- Navigation Areas -->
+            <div id="story-nav-prev" class="absolute inset-y-0 left-0 w-1/3 z-20"></div>
+            <div id="story-nav-next" class="absolute inset-y-0 right-0 w-2/3 z-20"></div>
+
+            <!-- Slide 0: Welcome -->
+            <div id="slide-0"
+                class="story-slide active absolute inset-0 flex flex-col items-center justify-center text-center px-6">
+                <div
+                    class="w-full max-w-[220px] aspect-square flex items-center justify-center mb-12 mt-[-10%] overflow-hidden pointer-events-none">
+                    <video autoplay loop muted playsinline webkit-playsinline class="w-full h-full object-contain">
+                        <source src="logo_animation.mp4" type="video/mp4">
+                    </video>
+                </div>
+                <h2 class="text-3xl font-black text-zinc-900 mb-4 leading-tight">Добро пожаловать в MyForma</h2>
+                <p class="text-zinc-500 text-lg">Твой личный помощник в мире фитнеса и здоровья.</p>
+            </div>
+
+            <!-- Slide 1: Workout Journal -->
+            <div id="slide-1"
+                class="story-slide absolute inset-0 flex flex-col items-center justify-center text-center px-6">
+                <!-- Видео выше и меньше (max-w-220) -->
+                <div
+                    class="absolute inset-x-0 top-[35%] -translate-y-1/2 flex items-center justify-center pointer-events-none">
+                    <div class="w-full max-w-[800px] aspect-square">
+                        <video autoplay loop muted playsinline webkit-playsinline class="w-full h-full object-contain">
+                            <source src="training_screen.mp4" type="video/mp4">
+                        </video>
+                    </div>
+                </div>
+                <!-- Чистый текст ниже -->
+                <div class="relative z-10 mt-auto mb-24 px-6">
+                    <h3 class="text-2xl font-black text-zinc-900 mb-4">Журнал тренировок</h3>
+                    <p class="text-zinc-500 text-base leading-relaxed">
+                        Записывай подходы в два тапа. Всё лишнее убрано — только ты и твои веса.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Slide 2: Weight Journal -->
+            <div id="slide-2"
+                class="story-slide absolute inset-0 flex flex-col items-center justify-center text-center px-6">
+                <!-- Видео выше и меньше (max-w-220) -->
+                <div
+                    class="absolute inset-x-0 top-[35%] -translate-y-1/2 flex items-center justify-center pointer-events-none">
+                    <div class="w-full max-w-[800px] aspect-square">
+                        <video autoplay loop muted playsinline webkit-playsinline class="w-full h-full object-contain">
+                            <source src="weight_screen.mp4" type="video/mp4">
+                        </video>
+                    </div>
+                </div>
+                <!-- Чистый текст ниже -->
+                <div class="relative z-10 mt-auto mb-24 px-6">
+                    <h3 class="text-2xl font-black text-zinc-900 mb-4">Контроль веса</h3>
+                    <p class="text-zinc-500 text-base leading-relaxed">
+                        Следи за прогрессом. Минимум усилий, наглядные графики и полная история изменений.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Slide 3: Ready -->
+            <div id="slide-3"
+                class="story-slide absolute inset-0 flex flex-col items-center justify-center text-center px-6">
+                <div class="size-24 bg-primary/10 rounded-full flex items-center justify-center mb-8 text-primary">
+                    <span class="material-symbols-outlined text-5xl">check_circle</span>
+                </div>
+                <h2 class="text-3xl font-black text-zinc-900 mb-4">Готов начать?</h2>
+                <p class="text-zinc-500 text-base mb-10">Твоё тело — это твой главный проект. Начнем его прямо сейчас.
+                </p>
+                <button onclick="finishOnboarding()"
+                    class="relative z-[200] bg-primary text-white font-black py-4 px-12 rounded-2xl text-xl active:scale-95 transition-transform pointer-events-auto shadow-lg shadow-primary/30">
+                    НАЧАТЬ
+                </button>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

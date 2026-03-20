@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+
+<html lang="ru"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Детали упражнения - Журнал тренировок</title>
+<!-- Google Fonts: Manrope -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 with Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration for Theme Integration -->
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#1754cf',
+            surface: '#f8fafc',
+          },
+          fontFamily: {
+            sans: ['Manrope', 'sans-serif'],
+          },
+          borderRadius: {
+            'theme': '8px', // Based on ROUND_EIGHT from source
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="custom-layout-tweaks">
+    /* Hide spin-buttons for number inputs for a cleaner look */
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type=number] {
+      -moz-appearance: textfield;
+    }
+    /* Smooth transition for row addition/removal */
+    .set-row {
+      transition: all 0.2s ease-in-out;
+    }
+    /* Fixed footer padding to avoid content being hidden */
+    body {
+      padding-bottom: 100px;
+      background-color: #ffffff;
+      color: #1e293b;
+    }
+  </style>
+</head>
+<body class="font-sans antialiased">
+<!-- BEGIN: MainHeader -->
+<header class="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-slate-100 px-4 py-4 flex items-center justify-between">
+<button aria-label="Назад" class="p-2 -ml-2 text-slate-500 hover:text-primary transition-colors">
+<svg fill="none" height="24" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
+<path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<h1 class="text-xl font-extrabold tracking-tight text-slate-900">Жим штанги лежа</h1>
+<button aria-label="Дополнительно" class="p-2 -mr-2 text-slate-500 hover:text-primary transition-colors">
+<svg fill="none" height="20" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="20" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</header>
+<!-- END: MainHeader -->
+<!-- BEGIN: ExerciseContent -->
+<main class="max-w-xl mx-auto px-4 py-6">
+<!-- Exercise Info Summary -->
+<div class="mb-6" data-purpose="exercise-summary">
+<div class="flex items-center gap-4 text-sm font-medium text-slate-500 mb-2 uppercase tracking-wider">
+<span>ГРУДНЫЕ</span>
+<span class="w-1 h-1 rounded-full bg-slate-300"></span>
+<span>ШТАНГА</span>
+</div>
+</div>
+<!-- Sets List Header -->
+<div class="grid grid-cols-12 gap-2 mb-3 px-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+<div class="col-span-2 text-center">ПОДХОД</div>
+<div class="col-span-4 text-center">ВЕС (КГ)</div>
+<div class="col-span-4 text-center">ПОВТОРЕНИЯ</div>
+<div class="col-span-2"></div>
+</div>
+<!-- BEGIN: SetsContainer -->
+<div class="space-y-3" id="sets-container">
+<!-- Set Row 1 -->
+<div class="set-row grid grid-cols-12 gap-2 items-center bg-slate-50 p-2 rounded-theme border border-slate-100" data-purpose="set-item">
+<div class="col-span-2 text-center font-bold text-slate-400 text-sm">1</div>
+<div class="col-span-4">
+<input class="w-full text-center bg-white border-slate-200 rounded-theme focus:ring-primary focus:border-primary font-semibold text-slate-800" placeholder="0" type="number" value="80"/>
+</div>
+<div class="col-span-4">
+<input class="w-full text-center bg-white border-slate-200 rounded-theme focus:ring-primary focus:border-primary font-semibold text-slate-800" placeholder="0" type="number" value="10"/>
+</div>
+<div class="col-span-2 flex justify-center">
+<button class="delete-set-btn p-2 text-slate-300 hover:text-red-500 transition-colors" title="Удалить подход">
+<svg fill="none" height="18" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="18" xmlns="http://www.w3.org/2000/svg">
+<path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+</div>
+<!-- Set Row 2 -->
+<div class="set-row grid grid-cols-12 gap-2 items-center bg-slate-50 p-2 rounded-theme border border-slate-100" data-purpose="set-item">
+<div class="col-span-2 text-center font-bold text-slate-400 text-sm">2</div>
+<div class="col-span-4">
+<input class="w-full text-center bg-white border-slate-200 rounded-theme focus:ring-primary focus:border-primary font-semibold text-slate-800" placeholder="0" type="number" value="80"/>
+</div>
+<div class="col-span-4">
+<input class="w-full text-center bg-white border-slate-200 rounded-theme focus:ring-primary focus:border-primary font-semibold text-slate-800" placeholder="0" type="number" value="8"/>
+</div>
+<div class="col-span-2 flex justify-center">
+<button class="delete-set-btn p-2 text-slate-300 hover:text-red-500 transition-colors" title="Удалить подход">
+<svg fill="none" height="18" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="18" xmlns="http://www.w3.org/2000/svg">
+<path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+</div>
+</div>
+<!-- END: SetsContainer -->
+<!-- Add Set Action -->
+<div class="mt-6 flex justify-center">
+<button class="flex items-center gap-2 px-6 py-3 text-sm font-bold text-primary border-2 border-primary/10 rounded-theme hover:bg-primary/5 active:scale-95 transition-all" id="add-set-btn">
+<svg fill="none" height="18" stroke="currentColor" stroke-width="3" viewbox="0 0 24 24" width="18" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+        ДОБАВИТЬ ПОДХОД
+      </button>
+</div>
+</main>
+<!-- END: ExerciseContent -->
+<!-- BEGIN: StickyFooter -->
+<footer class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 p-4 pb-8 backdrop-blur-lg">
+<div class="max-w-xl mx-auto">
+<button class="w-full py-4 bg-primary text-white font-bold rounded-theme shadow-lg shadow-primary/20 hover:opacity-90 active:scale-[0.98] transition-all tracking-wide uppercase text-sm">
+        СОХРАНИТЬ ИЗМЕНЕНИЯ
+      </button>
+</div>
+</footer>
+<!-- END: StickyFooter -->
+<!-- BEGIN: ScriptHandlers -->
+<script data-purpose="set-management">
+    document.addEventListener('DOMContentLoaded', () => {
+      const container = document.getElementById('sets-container');
+      const addBtn = document.getElementById('add-set-btn');
+
+      // Function to re-calculate set numbers
+      const updateSetNumbers = () => {
+        const rows = container.querySelectorAll('.set-row');
+        rows.forEach((row, index) => {
+          row.querySelector('.col-span-2').textContent = index + 1;
+        });
+      };
+
+      // Add set functionality
+      addBtn.addEventListener('click', () => {
+        const currentSets = container.querySelectorAll('.set-row').length;
+        const newRow = document.createElement('div');
+        newRow.className = 'set-row grid grid-cols-12 gap-2 items-center bg-slate-50 p-2 rounded-theme border border-slate-100';
+        newRow.innerHTML = `
+          <div class="col-span-2 text-center font-bold text-slate-400 text-sm">${currentSets + 1}</div>
+          <div class="col-span-4">
+            <input type="number" placeholder="0" class="w-full text-center bg-white border-slate-200 rounded-theme focus:ring-primary focus:border-primary font-semibold text-slate-800">
+          </div>
+          <div class="col-span-4">
+            <input type="number" placeholder="0" class="w-full text-center bg-white border-slate-200 rounded-theme focus:ring-primary focus:border-primary font-semibold text-slate-800">
+          </div>
+          <div class="col-span-2 flex justify-center">
+            <button class="delete-set-btn p-2 text-slate-300 hover:text-red-500 transition-colors" title="Удалить подход">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+        `;
+        container.appendChild(newRow);
+      });
+
+      // Delegate delete functionality
+      container.addEventListener('click', (e) => {
+        const deleteBtn = e.target.closest('.delete-set-btn');
+        if (deleteBtn) {
+          const row = deleteBtn.closest('.set-row');
+          row.style.opacity = '0';
+          row.style.transform = 'translateX(20px)';
+          setTimeout(() => {
+            row.remove();
+            updateSetNumbers();
+          }, 200);
+        }
+      });
+    });
+  </script>
+<!-- END: ScriptHandlers -->
+</body></html>
