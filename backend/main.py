@@ -33,10 +33,18 @@ scheduler = BackgroundScheduler()
 async def lifespan(app: FastAPI):
     # Запускаем планировщик
     scheduler.start()
-    # Запускаем бота в фоновом режиме
-    asyncio.create_task(dp.start_polling(bot))
+    
+    # Запускаем бота и сохраняем задачу
+    polling_task = asyncio.create_task(dp.start_polling(bot))
+    
     yield
-    scheduler.shutdown()
+    
+    # КОРРЕКТНОЕ ЗАВЕРШЕНИЕ
+    await dp.stop_polling()
+    await bot.session.close()
+    polling_task.cancel()
+    
+    scheduler.shutdown(wait=False)
 
 app = FastAPI(lifespan=lifespan)
 

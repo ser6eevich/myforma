@@ -82,7 +82,15 @@ async function initApp() {
     // ОПТИМИЗАЦИЯ: Один запрос вместо пяти
     try {
         const timestamp = Date.now();
-        const response = await fetch(`${API_URL}/init-app?telegram_id=${userId}&date=${today}&t=${timestamp}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 секунд лимит
+
+        const response = await fetch(`${API_URL}/init-app?telegram_id=${userId}&date=${today}&t=${timestamp}`, {
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+
         if (response.ok) {
             const data = await response.json();
             currentExercises = data.workouts || [];
