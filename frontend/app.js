@@ -1359,8 +1359,8 @@ const CATEGORY_ICONS = {
     "БИЦЕПС, ПРЕДПЛЕЧЬЯ": "fitness_center",
     "ТРИЦЕПС": "reorder",
     "ПРЕСС": "border_inner",
-    "ГРУДЬ": "width_normal",
-    "НОГИ": "directions_walk"
+    "ГРУДЬ": "layers",
+    "НОГИ, ЯГОДИЦЫ, ИКРЫ": "directions_walk"
 };
 
 function showCategoryModal() {
