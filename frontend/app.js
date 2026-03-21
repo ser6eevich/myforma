@@ -11,9 +11,10 @@ const setTgColors = () => {
 };
 tg.ready();
 
-const userId = tg.initDataUnsafe?.user?.id;
+const userId = tg.initDataUnsafe?.user?.id || 12345678; // 12345678 — тестовый ID для браузера
 
-// Блокировка входа вне Телеграма
+// Блокировка входа вне Телеграма (ВРЕМЕННО ОТКЛЮЧЕНО ДЛЯ ТЕСТОВ ДИЗАЙНА)
+/*
 if (!tg.initData) {
     document.body.innerHTML = `
         <div class="fixed inset-0 bg-zinc-950 flex flex-col items-center justify-center text-center p-8 z-[9999]">
@@ -31,6 +32,7 @@ if (!tg.initData) {
     `;
     window.stop(); // Останавливаем дальнейшую загрузку
 }
+*/
 const API_URL = ""; // Пустая строка для относительных путей (работает везде)
 
 let currentDate = new Date().toISOString().split('T')[0];
@@ -55,7 +57,15 @@ let swipeStartOffset = 0;
 let swipeStarted = false;
 let isDraggingPage = false;
 let sliderStartX = 0;
-const SWIPE_LIMIT = 140;
+const SWIPE_LIMIT = 70;
+function getPlural(n, one, two, five) {
+    let n1 = Math.abs(n) % 100;
+    let n2 = n1 % 10;
+    if (n1 > 10 && n1 < 20) return five;
+    if (n2 > 1 && n2 < 5) return two;
+    if (n2 === 1) return one;
+    return five;
+}
 
 // Onboarding State
 let currentStoryIndex = 0;
@@ -310,8 +320,8 @@ function renderJournal() {
         const totalVolume = ex.sets.reduce((sum, s) => sum + (Number(s.weight || 0) * Number(s.reps || 0)), 0);
         
         const setsBadges = ex.sets.map((s, i) => `
-            <div class="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-100 dark:border-zinc-800/50 transition-colors">
-                <span class="text-[9px] font-black text-primary/60 dark:text-blue-500/60 uppercase">S${i+1}</span>
+            <div class="flex-shrink-0 flex items-center gap-1 px-2 py-2 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-100 dark:border-zinc-800/50 transition-colors">
+                <span class="text-[9px] font-black text-primary/60 dark:text-blue-500/60 uppercase">П${i+1}</span>
                 <span class="text-[11px] font-bold text-zinc-700 dark:text-zinc-200">${s.weight}<span class="text-[9px] font-medium text-zinc-400 ml-0.5">кг</span></span>
                 <span class="text-[9px] text-zinc-300 dark:text-zinc-600">×</span>
                 <span class="text-[11px] font-bold text-zinc-700 dark:text-zinc-200">${s.reps}</span>
@@ -319,29 +329,24 @@ function renderJournal() {
         `).join('');
 
         const swipeContainer = document.createElement('div');
-        swipeContainer.className = "swipe-container mb-4 transition-opacity duration-300";
+        swipeContainer.className = "swipe-container mb-4 transition-opacity duration-300 relative overflow-hidden rounded-[28px]";
         swipeContainer.id = `exercise-card-${ex.id}`;
         
         swipeContainer.innerHTML = `
-            <div class="swipe-actions">
-                <button onclick="editExercise(${ex.id}, event)" class="action-btn action-edit">
-                    <span class="material-symbols-outlined" style="font-size: 24px;">edit</span>
-                </button>
-                <button onclick="deleteExerciseWithConfirm(${ex.id}, event)" class="action-btn action-delete">
+            <div class="swipe-actions absolute inset-y-0 right-0 flex items-center justify-start w-[70px] pointer-events-none transition-opacity duration-200 opacity-0 pl-2">
+                <button onclick="deleteExerciseWithConfirm(${ex.id}, event)" class="w-10 h-10 flex items-center justify-center text-red-500 active:scale-90 transition-transform">
                     <span class="material-symbols-outlined" style="font-size: 24px;">delete</span>
                 </button>
             </div>
-            <div class="swipe-content border border-zinc-100 dark:border-zinc-800/60 rounded-[28px] bg-white dark:bg-zinc-800 shadow-sm transition-all overflow-hidden">
+            <div class="swipe-content relative z-10 w-full border border-zinc-100 dark:border-zinc-800/60 rounded-[28px] bg-white dark:bg-zinc-800 shadow-sm transition-all">
                 <div class="p-4 cursor-pointer" onclick="editExercise(${ex.id}, event)">
                     <div class="flex items-start justify-between mb-4">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-primary/10 dark:bg-blue-900/20 flex items-center justify-center rounded-2xl text-primary dark:text-blue-400 transition-colors">
-                                <span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1">fitness_center</span>
-                            </div>
+                            <div class="w-1.5 h-6 bg-primary dark:bg-blue-500 rounded-full transition-colors mr-1"></div>
                             <div>
                                 <h3 class="font-bold text-zinc-900 dark:text-zinc-50 text-[15px] leading-tight mb-1">${ex.name}</h3>
                                 <div class="flex items-center gap-2">
-                                    <span class="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">${ex.sets.length} подходов</span>
+                                    <span class="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">${ex.sets.length} ${getPlural(ex.sets.length, 'подход', 'подхода', 'подходов')}</span>
                                 </div>
                             </div>
                         </div>
@@ -352,7 +357,7 @@ function renderJournal() {
                     </div>
 
                     ${ex.sets.length > 0 ? `
-                        <div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-1 px-1">
+                        <div class="grid grid-cols-3 gap-2 px-1">
                             ${setsBadges}
                         </div>
                     ` : `
@@ -744,11 +749,9 @@ function switchView(viewId) {
 }
 
 async function showJournal() {
-    const today = new Date().toISOString().split('T')[0];
-    if (currentDate !== today) {
-        await selectDate(today);
-    }
-
+    // ВАЖНО: Больше не сбрасываем currentDate на сегодня принудительно, 
+    // чтобы сохранялась выбранная пользователем дата при выходе из упражнения.
+    
     // Обработка закрытия деталей
     const details = document.getElementById('view-details');
     if (!details.classList.contains('hidden')) {
@@ -964,6 +967,15 @@ function initTouchEvents() {
                 if (move > 0) move *= 0.2;
                 else if (move < -SWIPE_LIMIT) move = -SWIPE_LIMIT + (move + SWIPE_LIMIT) * 0.2;
                 currentSwipeEl.style.transform = `translateX(${move}px)`;
+                
+                // Управление видимостью и кликабельностью кнопки
+                const actions = currentSwipeEl.parentElement.querySelector('.swipe-actions');
+                if (actions) {
+                    const progress = Math.min(Math.abs(move) / 30, 1);
+                    actions.style.opacity = progress;
+                    if (move < -30) actions.classList.remove('pointer-events-none');
+                    else actions.classList.add('pointer-events-none');
+                }
             } else if (!editingExerciseId && !document.getElementById('journal-wrapper').classList.contains('hidden')) {
                 let move = sliderStartX + diffX;
                 const min = -window.innerWidth;
@@ -1004,7 +1016,17 @@ function snapSlider() {
     updateJournalHeader();
 }
 
-function closeSwipe(el) { if (el) el.style.transform = 'translateX(0)'; if (currentSwipeEl === el) currentSwipeEl = null; }
+function closeSwipe(el) { 
+    if (el) {
+        el.style.transform = 'translateX(0)';
+        const actions = el.parentElement.querySelector('.swipe-actions');
+        if (actions) {
+            actions.style.opacity = '0';
+            actions.classList.add('pointer-events-none');
+        }
+    } 
+    if (currentSwipeEl === el) currentSwipeEl = null; 
+}
 function toggleExpand(el) {
     const content = el.closest('.swipe-content');
     if (new WebKitCSSMatrix(window.getComputedStyle(content).transform).m41 < -10) { closeSwipe(content); return; }
