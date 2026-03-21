@@ -376,6 +376,37 @@
             background: rgba(255,255,255,0.1);
         }
 
+        /* Стили для подходов в журнале */
+        .set-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 10px;
+            background: #f4f4f5; /* zinc-100 */
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #52525b; /* zinc-600 */
+            gap: 4px;
+            transition: all 0.3s ease;
+        }
+        .dark .set-pill {
+            background: #27272a; /* zinc-800 */
+            color: #a1a1aa; /* zinc-400 */
+        }
+        .set-pill-num {
+            color: #3b82f6; /* primary blue */
+            opacity: 0.8;
+            font-size: 9px;
+        }
+        .volume-card {
+            background: #f8fafc;
+            border: 1px solid #f1f5f9;
+        }
+        .dark .volume-card {
+            background: #18181b;
+            border: 1px solid #27272a;
+        }
+
         .material-symbols-outlined {
             font-family: 'Material Symbols Outlined' !important;
             font-weight: normal;
@@ -704,10 +735,15 @@
                         <!-- Генерируется динамически в app.js -->
                     </div>
                 </div>
+                <!-- Workouts Scroll Area -->
+            <div id="exercises-scroll-area" class="flex-1 overflow-y-auto px-6 pb-32 pt-2 custom-scrollbar">
+                
+                <!-- Total Workout Volume Card -->
+                <div id="total-workout-volume-container" class="mb-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                    <!-- Будет заполнено через JS (renderJournal) -->
+                </div>
 
-                <div id="exercises-scroll-area" class="flex-grow scrollable-y">
-                    <main class="px-6 py-4">
-                        <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center justify-between mb-4">
                             <h2 class="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest"
                                 id="workout-title">Сегодняшняя тренировка</h2>
                             <div class="flex items-center gap-4">
@@ -719,7 +755,6 @@
                         <div class="space-y-3" id="exercises-container">
                             <!-- Упражнения -->
                         </div>
-                    </main>
                 </div>
             </div>
 
