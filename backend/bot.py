@@ -27,6 +27,17 @@ async def send_notification(chat_id: int, text: str):
         print(f"Ошибка при отправке уведомления {chat_id}: {e}")
         return False
 
+async def send_workout_photo(chat_id: int, photo_bytes: bytes, filename: str):
+    """Отправка картинки тренировки пользователю"""
+    try:
+        from aiogram.types import BufferedInputFile
+        photo = BufferedInputFile(photo_bytes, filename=filename)
+        await bot.send_photo(chat_id, photo, caption="Твоя тренировка готова! 💪📈")
+        return True
+    except Exception as e:
+        print(f"Ошибка при отправке фото {chat_id}: {e}")
+        return False
+
 async def main():
     print("Бот запущен...")
     await dp.start_polling(bot)

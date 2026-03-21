@@ -368,6 +368,144 @@ function renderJournal() {
         `;
         container.appendChild(swipeContainer);
     });
+
+    // Кнопка "Поделиться" в конце списка
+    if (currentExercises.length > 0) {
+        const shareBtn = document.createElement('button');
+        shareBtn.onclick = shareWorkout;
+        shareBtn.className = "w-full mt-6 mb-12 py-4 bg-zinc-900 dark:bg-zinc-800 text-white font-bold rounded-[22px] shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all text-sm uppercase tracking-widest";
+        shareBtn.innerHTML = `
+            <span class="material-symbols-outlined" style="font-size: 20px;">share</span>
+            ПОДЕЛИТЬСЯ РЕЗУЛЬТАТОМ
+        `;
+        container.appendChild(shareBtn);
+    }
+}
+
+async function shareWorkout() {
+    const container = document.getElementById('exercises-container');
+    if (!container || !currentExercises.length) return;
+
+    const btn = document.querySelector('button[onclick="shareWorkout"]');
+    const originalText = btn ? btn.innerHTML : 'ПОДЕЛИТЬСЯ';
+    if (btn) {
+        btn.innerHTML = `<div class="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> ГЕНЕРАЦИЯ...`;
+        btn.disabled = true;
+    }
+
+    const captureArea = document.createElement('div');
+    captureArea.style.cssText = `
+        position: absolute; left: -9999px; top: 0; width: 400px; 
+        padding: 40px 30px; background: #ffffff; 
+        display: flex; flex-direction: column; gap: 20px; 
+        font-family: 'Manrope', sans-serif; color: #18181b;
+    `;
+    
+    const dateText = document.getElementById('dash-date').textContent;
+    captureArea.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+            <div style="width: 50px; height: 50px; background: #1754cf; border-radius: 16px; display: flex; align-items: center; justify-content: center; color: white;">
+                <span class="material-symbols-outlined" style="font-size: 30px;">fitness_center</span>
+            </div>
+            <div>
+                <h1 style="font-size: 24px; font-weight: 800; color: #18181b; margin: 0; letter-spacing: -0.5px;">MyForma</h1>
+                <p style="font-size: 10px; font-weight: 700; color: #71717a; margin: 2px 0 0 0; text-transform: uppercase; letter-spacing: 1px;">Тренировка • ${dateText}</p>
+            </div>
+        </div>
+    `;
+
+    const exercisesClone = container.cloneNode(true);
+    exercisesClone.classList.remove('stagger-children');
+    exercisesClone.querySelectorAll('button').forEach(b => b.remove()); // Remove all buttons from the clone
+
+    exercisesClone.querySelectorAll('*').forEach(el => {
+        el.classList.remove('dark', 'dark:bg-zinc-800', 'dark:text-zinc-50', 'dark:border-zinc-800/60', 'dark:bg-zinc-900/50', 'dark:text-zinc-400', 'dark:text-zinc-500');
+        el.style.opacity = '1';
+        el.style.animation = 'none';
+        el.style.transition = 'none';
+        if (el.classList.contains('bg-zinc-900')) el.style.backgroundColor = '#f4f4f5';
+        if (el.classList.contains('text-zinc-50')) el.style.color = '#18181b';
+        if (el.classList.contains('text-zinc-400') || el.classList.contains('text-zinc-500')) el.style.color = '#71717a';
+    });
+
+    exercisesClone.querySelectorAll('.swipe-container').forEach(card => {
+        card.style.cssText = "margin-bottom: 10px; opacity: 1; transform: none; display: block; border-radius: 16px; overflow: hidden; background: #ffffff; border: 1px solid #e4e4e7; padding: 0;";
+        const content = card.querySelector('.swipe-content');
+        if (content) content.style.cssText = "transform: none; background: #ffffff; border: none; padding: 12px 16px 10px 16px;"; 
+        const title = card.querySelector('h3');
+        if (title) title.style.fontSize = "15px";
+        const actions = card.querySelector('.swipe-actions');
+        if (actions) actions.remove();
+        const grid = card.querySelector('.grid');
+        if (grid) grid.style.cssText = "display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 0;";
+        card.querySelectorAll('.rounded-xl').forEach(badge => {
+            badge.style.backgroundColor = '#f4f4f5';
+            badge.style.border = '1px solid #e4e4e7';
+            badge.style.padding = '5px';
+            badge.style.fontSize = '11px';
+        });
+    });
+    
+    captureArea.appendChild(exercisesClone);
+    document.body.appendChild(captureArea);
+    
+    try {
+        const canvas = await html2canvas(captureArea, {
+            backgroundColor: '#ffffff',
+            scale: 2,
+            useCORS: true,
+            logging: false
+        });
+        
+        await new Promise((resolve, reject) => {
+            canvas.toBlob(async (blob) => {
+                try {
+                    if (!blob) {
+                        reject(new Error('Blob failed'));
+                        return;
+                    }
+                    const fileName = `workout-${new Date().toISOString().split('T')[0]}.png`;
+                    
+                    if (userId) {
+                        try {
+                            const formData = new FormData();
+                            formData.append('file', blob, fileName);
+                            const res = await fetch(`${API_URL}/share/image?telegram_id=${userId}`, { method: 'POST', body: formData });
+                            if (res.ok) {
+                                if (window.Telegram && window.Telegram.WebApp) {
+                                    const tg = window.Telegram.WebApp;
+                                    if (tg.isVersionAtLeast('6.1') && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+                                    if (tg.isVersionAtLeast('6.2')) tg.showAlert('Картинка в личке! 😉');
+                                    else alert('Картинка в личке! 😉');
+                                } else alert('Картинка в личке!');
+                                resolve();
+                                return;
+                            }
+                        } catch (e) { console.error("Ошибка отправки в бот", e); }
+                    }
+                    
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    setTimeout(() => URL.revokeObjectURL(url), 100);
+                    resolve();
+                } catch (e) { 
+                    reject(e); 
+                }
+            }, 'image/png');
+        });
+    } catch (err) {
+        console.error(err);
+        alert('Не удалось создать картинку');
+    } finally {
+        document.body.removeChild(captureArea);
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
 }
 
 // Журнал веса

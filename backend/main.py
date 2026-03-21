@@ -21,9 +21,10 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 try:
-    from .bot import bot, dp, send_notification
+    from .bot import bot, dp, send_notification, send_workout_photo
 except (ImportError, ValueError):
-    from bot import bot, dp, send_notification
+    from bot import bot, dp, send_notification, send_workout_photo
+from fastapi import FastAPI, Depends, HTTPException, Query, Body, File, UploadFile
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -611,6 +612,15 @@ scheduler.add_job(
 )
 
 # (Удалено, так как перенесено выше)
+
+@app.post("/share/image")
+async def share_image(telegram_id: int = Query(...), file: UploadFile = File(...)):
+    """Принимает скриншот тренировки и отправляет его пользователю в бот"""
+    content = await file.read()
+    success = await send_workout_photo(telegram_id, content, file.filename)
+    if success:
+        return {"status": "ok"}
+    raise HTTPException(status_code=500, detail="Failed to send photo via bot")
 
 # Админка перенесена вверх для корректной регистрации путей
 
