@@ -299,8 +299,6 @@ async function loadWorkouts() {
 function renderJournal() {
     const container = document.getElementById('exercises-container');
     const countLabel = document.getElementById('exercises-count');
-    const volumeContainer = document.getElementById('total-workout-volume-container');
-    
     if (!container) return;
     container.innerHTML = '';
     container.classList.remove('stagger-children');
@@ -308,24 +306,14 @@ function renderJournal() {
     container.classList.add('stagger-children');
     countLabel.textContent = `${currentExercises.length} Упражнения`;
 
-    // Расчет общего объема тренировки за день
-    let totalDayVolume = 0;
-
     currentExercises.forEach(ex => {
-        const exVolume = ex.sets.reduce((sum, s) => sum + (Number(s.weight || 0) * Number(s.reps || 0)), 0);
-        totalDayVolume += exVolume;
-
-        // Генерация плашек подходов
-        const setPills = ex.sets.length > 0 
-            ? `<div class="flex flex-wrap gap-2 mt-3">
-                 ${ex.sets.map((s, i) => `
-                    <div class="set-pill">
-                        <span class="set-pill-num">S${i+1}</span>
-                        ${s.weight}×${s.reps}
-                    </div>
-                 `).join('')}
-               </div>`
-            : `<p class="text-[10px] text-zinc-400 mt-2 italic">Подходы не добавлены</p>`;
+        const totalVolume = ex.sets.reduce((sum, s) => sum + (s.weight * s.reps), 0);
+        const setsSummary = ex.sets.length > 0 
+            ? `<div class="flex items-center gap-3">
+                 <span class="flex items-center gap-1 text-[10px]"><span class="material-symbols-outlined" style="font-size: 14px;">format_list_numbered</span>${ex.sets.length} подх.</span>
+                 <span class="flex items-center gap-1 text-[10px]"><span class="material-symbols-outlined" style="font-size: 14px;">fitness_center</span>${totalVolume.toLocaleString('ru-RU')} кг</span>
+               </div>` 
+            : "Нет подходов";
 
         const swipeContainer = document.createElement('div');
         swipeContainer.className = "swipe-container mb-3 transition-opacity duration-300";
@@ -335,57 +323,43 @@ function renderJournal() {
             <div class="swipe-actions">
                 <button onclick="editExercise(${ex.id}, event)" class="action-btn action-edit">
                     <span class="material-symbols-outlined" style="font-size: 24px;">edit</span>
-                    <span class="text-[10px] font-bold mt-1">ИЗМ.</span>
                 </button>
                 <button onclick="deleteExerciseWithConfirm(${ex.id}, event)" class="action-btn action-delete">
                     <span class="material-symbols-outlined" style="font-size: 24px;">delete</span>
-                    <span class="text-[10px] font-bold mt-1">УДАЛ.</span>
                 </button>
             </div>
-            <div class="swipe-content border border-zinc-100 dark:border-zinc-800 rounded-[28px] dark:bg-zinc-800 transition-colors bg-white shadow-sm shadow-zinc-200/50 dark:shadow-none" onclick="editExercise(${ex.id}, event)">
-                <div class="p-5 flex flex-col cursor-pointer">
-                    <div class="flex items-center justify-between w-full">
-                        <div class="flex items-center space-x-4">
-                            <div class="size-11 bg-zinc-50 dark:bg-zinc-900 flex items-center justify-center rounded-2xl text-primary font-bold transition-colors border border-zinc-100 dark:border-zinc-800">
-                                ${ex.name[0].toUpperCase()}
-                            </div>
-                            <div>
-                                <h3 class="font-extrabold text-zinc-900 dark:text-zinc-100 text-[15px] leading-tight transition-colors">${ex.name}</h3>
-                                <p class="text-[10px] font-bold text-primary/60 uppercase tracking-wider mt-1">Объем: ${exVolume.toLocaleString('ru-RU')} кг</p>
-                            </div>
+            <div class="swipe-content border border-zinc-100 dark:border-zinc-800 rounded-custom dark:bg-zinc-800 transition-colors">
+                <div class="p-4 flex items-center justify-between cursor-pointer" onclick="toggleExpand(this)">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center rounded-custom text-primary dark:text-blue-400 font-bold transition-colors">
+                            ${ex.name[0].toUpperCase()}
                         </div>
-                        <span class="material-symbols-outlined text-zinc-300 dark:text-zinc-600">chevron_right</span>
+                        <div>
+                            <h3 class="font-bold text-zinc-800 dark:text-zinc-100 text-sm leading-snug transition-colors">${ex.name}</h3>
+                            <div class="text-[11px] text-zinc-400 dark:text-zinc-500 font-medium mt-0.5 transition-colors">${setsSummary}</div>
+                        </div>
                     </div>
-                    ${setPills}
+                    <span class="material-symbols-outlined text-zinc-300 dark:text-zinc-600 chevron-icon transition-all duration-300">expand_more</span>
+                </div>
+                <div class="expandable-wrapper bg-zinc-50/50 dark:bg-zinc-900/30">
+                    <div class="expandable-content">
+                        <div class="px-4 pb-4 space-y-2">
+                        ${ex.sets.map((s, i) => `
+                            <div class="flex items-center justify-between py-2 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
+                                <span class="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Подход ${i+1}</span>
+                                <div class="flex space-x-4">
+                                    <span class="text-xs font-bold text-zinc-700 dark:text-zinc-200">${s.weight} кг</span>
+                                    <span class="text-xs font-bold text-zinc-400 dark:text-zinc-500">${s.reps} повт.</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
         container.appendChild(swipeContainer);
     });
-
-    // Отрисовка карточки общего объема в начале списка
-    if (volumeContainer) {
-        if (currentExercises.length > 0) {
-            volumeContainer.innerHTML = `
-                <div class="volume-card rounded-[32px] p-6 flex items-center justify-between shadow-sm overflow-hidden relative">
-                    <div class="absolute -right-4 -bottom-4 size-24 bg-primary/5 blur-3xl"></div>
-                    <div>
-                        <p class="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-1">Суммарный объем</p>
-                        <div class="flex items-baseline gap-1">
-                            <h2 class="text-3xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight">${totalDayVolume.toLocaleString('ru-RU')}</h2>
-                            <span class="text-sm font-bold text-zinc-400">кг</span>
-                        </div>
-                    </div>
-                    <div class="size-14 bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-[22px] flex items-center justify-center shadow-sm">
-                        <span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1">monitoring</span>
-                    </div>
-                </div>
-            `;
-            volumeContainer.classList.remove('hidden');
-        } else {
-            volumeContainer.classList.add('hidden');
-        }
-    }
 }
 
 // Журнал веса
@@ -515,15 +489,14 @@ function renderWeightHistory(weights) {
         return;
     }
 
-        weights.forEach(w => {
-            const displayDate = w.timestamp || w.date || '---';
-            const item = document.createElement('div');
-            item.className = "flex items-center justify-between p-4 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-100 dark:border-zinc-700 transition-colors";
-            item.innerHTML = `
-                <div>
-                    <p class="font-bold text-zinc-900 dark:text-zinc-100">${w.weight} кг</p>
-                    <p class="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-tighter">${displayDate}</p>
-                </div>
+    weights.forEach(w => {
+        const item = document.createElement('div');
+        item.className = "flex items-center justify-between p-4 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-100 dark:border-zinc-700 transition-colors";
+        item.innerHTML = `
+            <div>
+                <p class="font-bold text-zinc-900 dark:text-zinc-100">${w.weight} кг</p>
+                <p class="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-tighter">${w.timestamp}</p>
+            </div>
             <button onclick="deleteWeight(${w.id})" class="text-zinc-300 dark:text-zinc-600 hover:text-red-500 transition-colors p-1">
                 <span class="material-symbols-outlined text-[20px]">delete</span>
             </button>
@@ -565,7 +538,6 @@ function renderWeightChart(weights) {
     const reversedWeights = [...weights].reverse();
     const data = reversedWeights.map(w => w.weight);
     const dates = reversedWeights.map(w => {
-        if (!w.timestamp) return w.date || '';
         const parts = w.timestamp.split(' ');
         return parts[0] + ' ' + (parts[1] ? parts[1].replace(',', '') : '');
     });
@@ -991,12 +963,9 @@ function initTouchEvents() {
                 currentSwipeEl.style.transform = `translateX(${move}px)`;
             } else if (!editingExerciseId && !document.getElementById('journal-wrapper').classList.contains('hidden')) {
                 let move = sliderStartX + diffX;
-                const maxMove = 0;
-                const minMove = -(slider.offsetWidth / 2); // Слайдер 200%, значит 2 страницы по 50%
-                
-                if (move > maxMove) move = maxMove + (move - maxMove) * 0.2;
-                if (move < minMove) move = minMove + (move - minMove) * 0.2;
-                
+                const min = -window.innerWidth;
+                if (move > 0) move *= 0.2;
+                if (move < min) move = min + (move - min) * 0.2;
                 slider.style.transform = `translateX(${move}px)`;
                 isDraggingPage = true;
             }
