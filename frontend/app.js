@@ -307,16 +307,19 @@ function renderJournal() {
     countLabel.textContent = `${currentExercises.length} Упражнения`;
 
     currentExercises.forEach(ex => {
-        const totalVolume = ex.sets.reduce((sum, s) => sum + (s.weight * s.reps), 0);
-        const setsSummary = ex.sets.length > 0 
-            ? `<div class="flex items-center gap-3">
-                 <span class="flex items-center gap-1 text-[10px]"><span class="material-symbols-outlined" style="font-size: 14px;">format_list_numbered</span>${ex.sets.length} подх.</span>
-                 <span class="flex items-center gap-1 text-[10px]"><span class="material-symbols-outlined" style="font-size: 14px;">fitness_center</span>${totalVolume.toLocaleString('ru-RU')} кг</span>
-               </div>` 
-            : "Нет подходов";
+        const totalVolume = ex.sets.reduce((sum, s) => sum + (Number(s.weight || 0) * Number(s.reps || 0)), 0);
+        
+        const setsBadges = ex.sets.map((s, i) => `
+            <div class="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-100 dark:border-zinc-800/50 transition-colors">
+                <span class="text-[9px] font-black text-primary/60 dark:text-blue-500/60 uppercase">S${i+1}</span>
+                <span class="text-[11px] font-bold text-zinc-700 dark:text-zinc-200">${s.weight}<span class="text-[9px] font-medium text-zinc-400 ml-0.5">кг</span></span>
+                <span class="text-[9px] text-zinc-300 dark:text-zinc-600">×</span>
+                <span class="text-[11px] font-bold text-zinc-700 dark:text-zinc-200">${s.reps}</span>
+            </div>
+        `).join('');
 
         const swipeContainer = document.createElement('div');
-        swipeContainer.className = "swipe-container mb-3 transition-opacity duration-300";
+        swipeContainer.className = "swipe-container mb-4 transition-opacity duration-300";
         swipeContainer.id = `exercise-card-${ex.id}`;
         
         swipeContainer.innerHTML = `
@@ -328,33 +331,33 @@ function renderJournal() {
                     <span class="material-symbols-outlined" style="font-size: 24px;">delete</span>
                 </button>
             </div>
-            <div class="swipe-content border border-zinc-100 dark:border-zinc-800 rounded-custom dark:bg-zinc-800 transition-colors">
-                <div class="p-4 flex items-center justify-between cursor-pointer" onclick="toggleExpand(this)">
-                    <div class="flex items-center space-x-4">
-                        <div class="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center rounded-custom text-primary dark:text-blue-400 font-bold transition-colors">
-                            ${ex.name[0].toUpperCase()}
-                        </div>
-                        <div>
-                            <h3 class="font-bold text-zinc-800 dark:text-zinc-100 text-sm leading-snug transition-colors">${ex.name}</h3>
-                            <div class="text-[11px] text-zinc-400 dark:text-zinc-500 font-medium mt-0.5 transition-colors">${setsSummary}</div>
-                        </div>
-                    </div>
-                    <span class="material-symbols-outlined text-zinc-300 dark:text-zinc-600 chevron-icon transition-all duration-300">expand_more</span>
-                </div>
-                <div class="expandable-wrapper bg-zinc-50/50 dark:bg-zinc-900/30">
-                    <div class="expandable-content">
-                        <div class="px-4 pb-4 space-y-2">
-                        ${ex.sets.map((s, i) => `
-                            <div class="flex items-center justify-between py-2 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
-                                <span class="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Подход ${i+1}</span>
-                                <div class="flex space-x-4">
-                                    <span class="text-xs font-bold text-zinc-700 dark:text-zinc-200">${s.weight} кг</span>
-                                    <span class="text-xs font-bold text-zinc-400 dark:text-zinc-500">${s.reps} повт.</span>
+            <div class="swipe-content border border-zinc-100 dark:border-zinc-800/60 rounded-[28px] bg-white dark:bg-zinc-800 shadow-sm transition-all overflow-hidden">
+                <div class="p-4 cursor-pointer" onclick="editExercise(${ex.id}, event)">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-primary/10 dark:bg-blue-900/20 flex items-center justify-center rounded-2xl text-primary dark:text-blue-400 transition-colors">
+                                <span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1">fitness_center</span>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-zinc-900 dark:text-zinc-50 text-[15px] leading-tight mb-1">${ex.name}</h3>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">${ex.sets.length} подходов</span>
                                 </div>
                             </div>
-                        `).join('')}
+                        </div>
+                        <div class="text-right">
+                            <div class="text-[10px] font-black text-zinc-300 dark:text-zinc-600 uppercase tracking-widest mb-0.5">Объем</div>
+                            <div class="text-[13px] font-black text-zinc-800 dark:text-zinc-100">${totalVolume.toLocaleString('ru-RU')}<span class="text-[9px] ml-0.5 opacity-50">кг</span></div>
                         </div>
                     </div>
+
+                    ${ex.sets.length > 0 ? `
+                        <div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-1 px-1">
+                            ${setsBadges}
+                        </div>
+                    ` : `
+                        <div class="py-2 text-[11px] text-zinc-400 dark:text-zinc-500 italic">Нет записанных подходов</div>
+                    `}
                 </div>
             </div>
         `;
