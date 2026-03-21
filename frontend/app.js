@@ -515,14 +515,15 @@ function renderWeightHistory(weights) {
         return;
     }
 
-    weights.forEach(w => {
-        const item = document.createElement('div');
-        item.className = "flex items-center justify-between p-4 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-100 dark:border-zinc-700 transition-colors";
-        item.innerHTML = `
-            <div>
-                <p class="font-bold text-zinc-900 dark:text-zinc-100">${w.weight} кг</p>
-                <p class="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-tighter">${w.timestamp}</p>
-            </div>
+        weights.forEach(w => {
+            const displayDate = w.timestamp || w.date || '---';
+            const item = document.createElement('div');
+            item.className = "flex items-center justify-between p-4 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-100 dark:border-zinc-700 transition-colors";
+            item.innerHTML = `
+                <div>
+                    <p class="font-bold text-zinc-900 dark:text-zinc-100">${w.weight} кг</p>
+                    <p class="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-tighter">${displayDate}</p>
+                </div>
             <button onclick="deleteWeight(${w.id})" class="text-zinc-300 dark:text-zinc-600 hover:text-red-500 transition-colors p-1">
                 <span class="material-symbols-outlined text-[20px]">delete</span>
             </button>
@@ -564,6 +565,7 @@ function renderWeightChart(weights) {
     const reversedWeights = [...weights].reverse();
     const data = reversedWeights.map(w => w.weight);
     const dates = reversedWeights.map(w => {
+        if (!w.timestamp) return w.date || '';
         const parts = w.timestamp.split(' ');
         return parts[0] + ' ' + (parts[1] ? parts[1].replace(',', '') : '');
     });
