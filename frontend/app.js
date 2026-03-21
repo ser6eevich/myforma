@@ -991,9 +991,12 @@ function initTouchEvents() {
                 currentSwipeEl.style.transform = `translateX(${move}px)`;
             } else if (!editingExerciseId && !document.getElementById('journal-wrapper').classList.contains('hidden')) {
                 let move = sliderStartX + diffX;
-                const min = -window.innerWidth;
-                if (move > 0) move *= 0.2;
-                if (move < min) move = min + (move - min) * 0.2;
+                const maxMove = 0;
+                const minMove = -(slider.offsetWidth / 2); // Слайдер 200%, значит 2 страницы по 50%
+                
+                if (move > maxMove) move = maxMove + (move - maxMove) * 0.2;
+                if (move < minMove) move = minMove + (move - minMove) * 0.2;
+                
                 slider.style.transform = `translateX(${move}px)`;
                 isDraggingPage = true;
             }
