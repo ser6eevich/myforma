@@ -405,7 +405,7 @@ async function shareWorkout() {
     captureArea.innerHTML = `
         <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
             <div style="width: 50px; height: 50px; background: #1754cf; border-radius: 16px; display: flex; align-items: center; justify-content: center; color: white;">
-                <span class="material-symbols-outlined" style="font-size: 30px;">fitness_center</span>
+                <span class="material-symbols-outlined" style="font-size: 30px; transform: rotate(-45deg);">fitness_center</span>
             </div>
             <div>
                 <h1 style="font-size: 24px; font-weight: 800; color: #18181b; margin: 0; letter-spacing: -0.5px;">MyForma</h1>
@@ -441,8 +441,32 @@ async function shareWorkout() {
         card.querySelectorAll('.rounded-xl').forEach(badge => {
             badge.style.backgroundColor = '#f4f4f5';
             badge.style.border = '1px solid #e4e4e7';
-            badge.style.padding = '5px';
-            badge.style.fontSize = '11px';
+            badge.style.padding = '4px 8px';
+            badge.style.display = 'flex';
+            badge.style.alignItems = 'baseline';
+            badge.style.gap = '3px';
+            const spans = badge.querySelectorAll('span');
+            if (spans.length >= 5) {
+                // П1
+                spans[0].style.fontSize = '9px';
+                spans[0].style.fontWeight = '800';
+                spans[0].style.color = '#1754cf';
+                // Вага
+                spans[1].style.fontSize = '12px';
+                spans[1].style.fontWeight = '800';
+                spans[1].style.color = '#18181b';
+                // кг
+                spans[2].style.fontSize = '9px';
+                spans[2].style.fontWeight = '600';
+                spans[2].style.color = '#a1a1aa';
+                // x
+                spans[3].style.fontSize = '10px';
+                spans[3].style.color = '#d4d4d8';
+                // Повторения
+                spans[4].style.fontSize = '12px';
+                spans[4].style.fontWeight = '800';
+                spans[4].style.color = '#18181b';
+            }
         });
     });
     
