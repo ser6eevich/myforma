@@ -35,6 +35,9 @@ if (!tg.initData) {
 */
 const API_URL = ""; // Пустая строка для относительных путей (работает везде)
 
+// Кэш тренировок по датам — мгновенный показ при переключении
+const workoutsCache = new Map();
+
 let currentDate = new Date().toISOString().split('T')[0];
 let currentExercises = [];
 let currentWeights = [];
@@ -115,10 +118,14 @@ async function initApp() {
             workoutsLoaded = true;
             weightsLoaded = true;
 
+            // Кэшируем данные сегодня сразу при загрузке
+            workoutsCache.set(today, currentExercises);
+
             // ВАЖНО: Отрисовываем данные в интерфейсе ПЕРЕД показом
             renderJournal();
             renderWeightHistory(currentWeights.slice(0, 3));
             renderWeightChart(currentWeights);
+            updateWeightDisplayFields(currentWeights);
         }
     } catch (error) {
         console.error("Init App error:", error);
@@ -145,6 +152,25 @@ async function initApp() {
             });
         }
     });
+
+    // Обновление данных при возврате в приложение
+    document.addEventListener('visibilitychange', onAppResume);
+    tg.onEvent('activated', onAppResume);
+}
+
+function onAppResume() {
+    if (document.visibilityState !== 'visible') return;
+
+    // Если дата сменилась (например, перешли в новый день) — обновляем на сегодня
+    const today = new Date().toISOString().split('T')[0];
+    if (currentDate !== today) {
+        currentDate = today;
+        initCalendar();
+    }
+
+    // Принудительно перезагружаем упражнения
+    workoutsLoaded = false;
+    loadWorkouts();
 }
 
 
@@ -260,47 +286,70 @@ function initCalendar() {
 async function selectDate(isoDate) {
     currentDate = isoDate;
     workoutsLoaded = false;
-    weightsLoaded = false;
     initCalendar();
+
+    // Если дата уже в кэше — показываем мгновенно
+    if (workoutsCache.has(isoDate)) {
+        currentExercises = workoutsCache.get(isoDate);
+        renderJournal();
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (isoDate === todayStr) { todayExercises = [...currentExercises]; updateDashboard(); }
+    }
+
+    // Загружаем с сервера в фоне (обновляет кэш и UI если данные изменились)
     await loadWorkouts();
+
+    // Предзагружаем соседние даты в фоне
+    preloadAdjacentDates(isoDate);
+}
+
+function preloadAdjacentDates(isoDate) {
+    const base = new Date(isoDate + 'T00:00:00');
+    [-1, -2, 1].forEach(offset => {
+        const d = new Date(base);
+        d.setDate(base.getDate() + offset);
+        const dateStr = d.toISOString().split('T')[0];
+        if (!workoutsCache.has(dateStr)) {
+            fetchWorkoutsForDate(dateStr).then(exercises => {
+                workoutsCache.set(dateStr, exercises);
+            }).catch(() => {});
+        }
+    });
+}
+
+async function fetchWorkoutsForDate(date) {
+    const response = await fetch(`${API_URL}/workouts?date=${date}&telegram_id=${userId}`);
+    if (!response.ok) return [];
+    return await response.json();
 }
 
 async function loadWorkouts() {
+    const date = currentDate;
     const todayStr = new Date().toISOString().split('T')[0];
-    const isToday = currentDate === todayStr;
-    
+    const isToday = date === todayStr;
+
     workoutsLoaded = true;
     const container = document.getElementById('exercises-container');
     if (!container) return;
-    container.style.opacity = '0.5';
-    
+
+    // Показываем затемнение только если нет кэша (первая загрузка)
+    if (!workoutsCache.has(date)) container.style.opacity = '0.5';
+
     try {
-        const todayStr = new Date().toISOString().split('T')[0];
-        if (currentDate === todayStr) {
-            todayExercises = []; 
-            updateDashboard();
-        }
-        
-        const timestamp = Date.now();
-        const response = await fetch(`${API_URL}/workouts?date=${currentDate}&telegram_id=${userId}&t=${timestamp}`, {
-            headers: { 'Cache-Control': 'no-cache' }
-        });
-        
-        if (response.ok) {
-            currentExercises = await response.json();
-            console.log("DEBUG: Loaded exercises for", currentDate, currentExercises);
-        } else {
-            console.error("Server error:", response.status);
-            currentExercises = [];
-        }
+        const exercises = await fetchWorkoutsForDate(date);
+
+        // Если дата успела смениться пока грузили — игнорируем
+        if (currentDate !== date) return;
+
+        workoutsCache.set(date, exercises);
+        currentExercises = exercises;
     } catch (error) {
         console.error("Load error:", error);
-        currentExercises = [];
+        if (currentDate !== date) return;
+        if (!workoutsCache.has(date)) currentExercises = [];
     } finally {
-        if (isToday) {
-            todayExercises = [...currentExercises];
-            updateDashboard();
-        }
+        if (currentDate !== date) return;
+        if (isToday) { todayExercises = [...currentExercises]; updateDashboard(); }
         renderJournal();
         container.style.opacity = '1';
     }
@@ -369,17 +418,8 @@ function renderJournal() {
         container.appendChild(swipeContainer);
     });
 
-    // Кнопка "Поделиться" в конце списка
-    if (currentExercises.length > 0) {
-        const shareBtn = document.createElement('button');
-        shareBtn.onclick = shareWorkout;
-        shareBtn.className = "w-full mt-6 mb-12 py-4 bg-zinc-900 dark:bg-zinc-800 text-white font-bold rounded-[22px] shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all text-sm uppercase tracking-widest";
-        shareBtn.innerHTML = `
-            <span class="material-symbols-outlined" style="font-size: 20px;">share</span>
-            ПОДЕЛИТЬСЯ РЕЗУЛЬТАТОМ
-        `;
-        container.appendChild(shareBtn);
-    }
+    // Обновляем шапку — показываем/скрываем кнопку share
+    updateJournalHeader();
 }
 
 async function shareWorkout() {
@@ -393,86 +433,81 @@ async function shareWorkout() {
         btn.disabled = true;
     }
 
-    const captureArea = document.createElement('div');
-    captureArea.style.cssText = `
-        position: absolute; left: -9999px; top: 0; width: 400px; 
-        padding: 40px 30px; background: #ffffff; 
-        display: flex; flex-direction: column; gap: 20px; 
-        font-family: 'Manrope', sans-serif; color: #18181b;
-    `;
-    
-    const dateText = document.getElementById('dash-date').textContent;
-    captureArea.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
-            <div style="width: 50px; height: 50px; background: #1754cf; border-radius: 16px; display: flex; align-items: center; justify-content: center; color: white;">
-                <span class="material-symbols-outlined" style="font-size: 30px; transform: rotate(-45deg);">fitness_center</span>
+    // Форматируем дату тренировки (currentDate, а не сегодня)
+    const months = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+    const days = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+    const d = new Date(currentDate + 'T00:00:00');
+    const dateLabel = `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`.toUpperCase();
+
+    // Считаем общий объём тренировки
+    const totalVolume = currentExercises.reduce((sum, ex) =>
+        sum + ex.sets.reduce((s, set) => s + (Number(set.weight) * Number(set.reps)), 0), 0
+    );
+
+    // Строим HTML упражнений напрямую из данных — без клонирования DOM
+    const exercisesHtml = currentExercises.map(ex => {
+        const exVolume = ex.sets.reduce((s, set) => s + (Number(set.weight) * Number(set.reps)), 0);
+        const badgesHtml = ex.sets.map((s, i) => `<span style="display:inline-block;background:#f4f4f5;border:1px solid #e4e4e7;border-radius:10px;padding:7px 10px;white-space:nowrap;outline:none;"><span style="font-size:9px;font-weight:800;color:#1754cf;vertical-align:middle;line-height:1;">П${i+1}</span><span style="font-size:14px;font-weight:800;color:#18181b;vertical-align:middle;line-height:1;margin-left:3px;">${s.weight}</span><span style="font-size:9px;font-weight:500;color:#a1a1aa;vertical-align:middle;line-height:1;">кг</span><span style="font-size:9px;color:#d4d4d8;vertical-align:middle;line-height:1;margin:0 2px;">×</span><span style="font-size:14px;font-weight:800;color:#18181b;vertical-align:middle;line-height:1;">${s.reps}</span></span>`).join(' ');
+
+        return `
+            <div style="background:#fff; border:1px solid #e4e4e7; border-radius:20px; padding:16px; margin-bottom:10px;">
+                <div style="display:table; width:100%; margin-bottom:12px;">
+                    <div style="display:table-cell; vertical-align:top;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div style="width:5px; height:22px; background:#1754cf; border-radius:3px; flex-shrink:0;"></div>
+                            <div>
+                                <div style="font-size:15px; font-weight:800; color:#18181b;">${ex.name}</div>
+                                <div style="font-size:10px; font-weight:700; color:#a1a1aa; text-transform:uppercase; letter-spacing:1px; margin-top:2px;">${ex.sets.length} ${getPlural(ex.sets.length,'подход','подхода','подходов')}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:table-cell; vertical-align:top; text-align:right; white-space:nowrap;">
+                        <div style="font-size:9px; font-weight:700; color:#a1a1aa; text-transform:uppercase; letter-spacing:1px;">Объём</div>
+                        <div style="font-size:16px; font-weight:800; color:#18181b;">${Math.round(exVolume).toLocaleString('ru-RU')} <span style="font-size:11px; color:#a1a1aa;">кг</span></div>
+                    </div>
+                </div>
+                <div style="display:flex; flex-wrap:wrap; gap:6px;">${badgesHtml}</div>
             </div>
-            <div>
-                <h1 style="font-size: 24px; font-weight: 800; color: #18181b; margin: 0; letter-spacing: -0.5px;">MyForma</h1>
-                <p style="font-size: 10px; font-weight: 700; color: #71717a; margin: 2px 0 0 0; text-transform: uppercase; letter-spacing: 1px;">Тренировка • ${dateText}</p>
+        `;
+    }).join('');
+
+    const captureArea = document.createElement('div');
+    captureArea.style.cssText = 'position:absolute; left:-9999px; top:0; width:400px; padding:32px 24px; background:#f8f9fa; font-family:Manrope,sans-serif; color:#18181b;';
+    captureArea.innerHTML = `
+        <div style="display:table; width:100%; margin-bottom:24px;">
+            <div style="display:table-cell; vertical-align:middle;">
+                <div style="width:56px; height:56px; background:#1754cf; border-radius:16px; display:table-cell; vertical-align:middle; text-align:center;">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="display:inline-block; vertical-align:middle;">
+                        <rect x="1.5" y="9" width="3" height="6" rx="1.2" fill="white"/>
+                        <rect x="19.5" y="9" width="3" height="6" rx="1.2" fill="white"/>
+                        <rect x="4.5" y="10.5" width="15" height="3" rx="1" fill="white"/>
+                        <rect x="4.5" y="8" width="3" height="8" rx="1.2" fill="white"/>
+                        <rect x="16.5" y="8" width="3" height="8" rx="1.2" fill="white"/>
+                    </svg>
+                </div>
+            </div>
+            <div style="display:table-cell; vertical-align:middle; padding-left:14px;">
+                <div style="font-size:24px; font-weight:800; color:#18181b; letter-spacing:-0.5px;">MyForma</div>
+                <div style="font-size:10px; font-weight:700; color:#71717a; text-transform:uppercase; letter-spacing:1px; margin-top:2px;">Тренировка • ${dateLabel}</div>
+            </div>
+        </div>
+
+        ${exercisesHtml}
+
+        <div style="background:#1754cf; border-radius:16px; padding:16px 20px; margin-top:4px; display:table; width:100%; box-sizing:border-box;">
+            <div style="display:table-cell; vertical-align:middle;">
+                <div style="font-size:11px; font-weight:700; color:rgba(255,255,255,0.7); text-transform:uppercase; letter-spacing:1px;">Итого за тренировку</div>
+                <div style="font-size:11px; font-weight:600; color:rgba(255,255,255,0.6); margin-top:2px;">${currentExercises.length} ${getPlural(currentExercises.length,'упражнение','упражнения','упражнений')}</div>
+            </div>
+            <div style="display:table-cell; vertical-align:middle; text-align:right; white-space:nowrap;">
+                <div style="font-size:28px; font-weight:800; color:#fff;">${Math.round(totalVolume).toLocaleString('ru-RU')} <span style="font-size:14px; font-weight:600; color:rgba(255,255,255,0.7);">кг</span></div>
             </div>
         </div>
     `;
 
-    const exercisesClone = container.cloneNode(true);
-    exercisesClone.classList.remove('stagger-children');
-    exercisesClone.querySelectorAll('button').forEach(b => b.remove()); // Remove all buttons from the clone
-
-    exercisesClone.querySelectorAll('*').forEach(el => {
-        el.classList.remove('dark', 'dark:bg-zinc-800', 'dark:text-zinc-50', 'dark:border-zinc-800/60', 'dark:bg-zinc-900/50', 'dark:text-zinc-400', 'dark:text-zinc-500');
-        el.style.opacity = '1';
-        el.style.animation = 'none';
-        el.style.transition = 'none';
-        if (el.classList.contains('bg-zinc-900')) el.style.backgroundColor = '#f4f4f5';
-        if (el.classList.contains('text-zinc-50')) el.style.color = '#18181b';
-        if (el.classList.contains('text-zinc-400') || el.classList.contains('text-zinc-500')) el.style.color = '#71717a';
-    });
-
-    exercisesClone.querySelectorAll('.swipe-container').forEach(card => {
-        card.style.cssText = "margin-bottom: 10px; opacity: 1; transform: none; display: block; border-radius: 16px; overflow: hidden; background: #ffffff; border: 1px solid #e4e4e7; padding: 0;";
-        const content = card.querySelector('.swipe-content');
-        if (content) content.style.cssText = "transform: none; background: #ffffff; border: none; padding: 12px 16px 10px 16px;"; 
-        const title = card.querySelector('h3');
-        if (title) title.style.fontSize = "15px";
-        const actions = card.querySelector('.swipe-actions');
-        if (actions) actions.remove();
-        const grid = card.querySelector('.grid');
-        if (grid) grid.style.cssText = "display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 0;";
-        card.querySelectorAll('.rounded-xl').forEach(badge => {
-            badge.style.backgroundColor = '#f4f4f5';
-            badge.style.border = '1px solid #e4e4e7';
-            badge.style.padding = '4px 8px';
-            badge.style.display = 'flex';
-            badge.style.alignItems = 'baseline';
-            badge.style.gap = '3px';
-            const spans = badge.querySelectorAll('span');
-            if (spans.length >= 5) {
-                // П1
-                spans[0].style.fontSize = '9px';
-                spans[0].style.fontWeight = '800';
-                spans[0].style.color = '#1754cf';
-                // Вага
-                spans[1].style.fontSize = '12px';
-                spans[1].style.fontWeight = '800';
-                spans[1].style.color = '#18181b';
-                // кг
-                spans[2].style.fontSize = '9px';
-                spans[2].style.fontWeight = '600';
-                spans[2].style.color = '#a1a1aa';
-                // x
-                spans[3].style.fontSize = '10px';
-                spans[3].style.color = '#d4d4d8';
-                // Повторения
-                spans[4].style.fontSize = '12px';
-                spans[4].style.fontWeight = '800';
-                spans[4].style.color = '#18181b';
-            }
-        });
-    });
-    
-    captureArea.appendChild(exercisesClone);
     document.body.appendChild(captureArea);
-    
+    captureArea.querySelectorAll('*').forEach(el => { el.style.outline = 'none'; el.style.boxShadow = 'none'; });
+
     try {
         const canvas = await html2canvas(captureArea, {
             backgroundColor: '#ffffff',
@@ -575,8 +610,14 @@ function updateJournalHeader() {
                 <span class="material-symbols-outlined" style="font-size: 20px;">calendar_today</span>
             </label>
         `;
+        const shareVisible = currentExercises.length > 0;
+        rightEl.className = 'flex items-center gap-2';
         rightEl.innerHTML = `
-            <button onclick="promptNewExercise()" aria-label="Add Exercise" class="size-10 flex items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-primary/20 active:scale-95 transition-transform">
+            ${shareVisible ? `
+            <button onclick="shareWorkout()" aria-label="Поделиться" class="size-10 flex items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 active:scale-95 transition-all">
+                <span class="material-symbols-outlined" style="font-size: 20px;">ios_share</span>
+            </button>` : ''}
+            <button onclick="promptNewExercise()" aria-label="Добавить упражнение" class="size-10 flex items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-primary/20 active:scale-95 transition-transform">
                 <span class="material-symbols-outlined" style="font-size: 20px;">add</span>
             </button>
         `;
@@ -595,6 +636,41 @@ function updateJournalHeader() {
     }
 }
 
+function updateWeightDisplayFields(weights) {
+    const seeAllBtn = document.getElementById('btn-see-all-weights');
+    if (seeAllBtn) {
+        if (weights.length > 3) seeAllBtn.classList.remove('hidden');
+        else seeAllBtn.classList.add('hidden');
+    }
+
+    const display = document.getElementById('current-weight-display');
+    const trendContainer = document.getElementById('weight-trend-container');
+
+    if (weights.length > 0) {
+        const currentWeight = weights[0].weight;
+        if (display) display.textContent = currentWeight.toFixed(1);
+
+        if (trendContainer) {
+            if (weights.length > 1) {
+                const prevWeight = weights[1].weight;
+                const diff = currentWeight - prevWeight;
+                const percent = ((diff / prevWeight) * 100).toFixed(1);
+                const isDown = diff <= 0;
+                trendContainer.className = `flex items-center gap-1 font-bold text-sm ${isDown ? 'text-green-500' : 'text-red-500'}`;
+                trendContainer.innerHTML = `
+                    <span class="material-symbols-outlined text-sm">${isDown ? 'trending_down' : 'trending_up'}</span>
+                    ${isDown ? '' : '+'}${percent}% за всё время
+                `;
+            } else {
+                trendContainer.innerHTML = '<span class="text-slate-300 font-medium">Первая запись</span>';
+            }
+        }
+    } else {
+        if (display) display.textContent = "--";
+        if (trendContainer) trendContainer.innerHTML = '';
+    }
+}
+
 async function loadWeights() {
     weightsLoaded = true;
     try {
@@ -606,40 +682,7 @@ async function loadWeights() {
             currentWeights = weights;
             renderWeightHistory(weights.slice(0, 3));
             renderWeightChart(weights);
-            
-            const seeAllBtn = document.getElementById('btn-see-all-weights');
-            if (seeAllBtn) {
-                if (weights.length > 3) seeAllBtn.classList.remove('hidden');
-                else seeAllBtn.classList.add('hidden');
-            }
-            
-            if (weights.length > 0) {
-                const currentWeight = weights[0].weight;
-                const display = document.getElementById('current-weight-display');
-                if (display) display.textContent = currentWeight.toFixed(1);
-                
-                const trendContainer = document.getElementById('weight-trend-container');
-                if (trendContainer) {
-                    if (weights.length > 1) {
-                        const prevWeight = weights[1].weight;
-                        const diff = currentWeight - prevWeight;
-                        const percent = ((diff / prevWeight) * 100).toFixed(1);
-                        const isDown = diff <= 0;
-                        trendContainer.className = `flex items-center gap-1 font-bold text-sm ${isDown ? 'text-green-500' : 'text-red-500'}`;
-                        trendContainer.innerHTML = `
-                            <span class="material-symbols-outlined text-sm">${isDown ? 'trending_down' : 'trending_up'}</span>
-                            ${isDown ? '' : '+'}${percent}% за всё время
-                        `;
-                    } else {
-                        trendContainer.innerHTML = '<span class="text-slate-300 font-medium">Первая запись</span>';
-                    }
-                }
-            } else {
-                const display = document.getElementById('current-weight-display');
-                if (display) display.textContent = "--";
-                const trendContainer = document.getElementById('weight-trend-container');
-                if (trendContainer) trendContainer.innerHTML = '';
-            }
+            updateWeightDisplayFields(weights);
         }
     } catch (err) {
         console.error("Load weights error:", err);
@@ -748,7 +791,6 @@ function renderWeightChart(weights) {
     const isDark = document.documentElement.classList.contains('dark');
     const accentColor = isDark ? '#3b82f6' : '#3b82f6'; // Можно уточнить для zinc
     const textColor = isDark ? '#71717a' : '#64748b'; // zinc-400
-    const gridColor = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.05)';
 
     container.innerHTML = `
         <div class="bg-white dark:bg-zinc-800 rounded-[32px] p-3 overflow-hidden relative border border-zinc-100 dark:border-zinc-700 transition-colors shadow-sm">
@@ -762,7 +804,7 @@ function renderWeightChart(weights) {
                     </defs>
                     <path d="${fillPath}" fill="url(#chartGradient)" />
                     <path d="${curvePath}" fill="none" stroke="${accentColor}" stroke-width="3.5" stroke-linecap="round" class="chart-line-anim" />
-                    ${points.map((p, i) => `<circle cx="${p.x}" cy="${p.y}" r="4.5" fill="${isDark ? '#27272a' : 'white'}" stroke="${accentColor}" stroke-width="2.5" />`).join('')}
+                    ${points.map(p => `<circle cx="${p.x}" cy="${p.y}" r="4.5" fill="${isDark ? '#27272a' : 'white'}" stroke="${accentColor}" stroke-width="2.5" />`).join('')}
                     ${[0, Math.floor(points.length/2), points.length-1].map(i => {
                         const p = points[i];
                         const isLast = i === points.length - 1;
@@ -1210,11 +1252,54 @@ function editExercise(id, event) {
     document.getElementById('nav-pill').classList.add('hidden');
     document.getElementById('btn-delete-exercise').classList.remove('hidden');
     renderEditSets(ex.sets);
-    
+    loadExerciseHistory(ex.name);
+
     // Scroll lock hack (smooth)
     details.addEventListener('touchstart', () => {
         if (details.scrollTop === 0) details.scrollTop = 1;
     });
+}
+
+async function loadExerciseHistory(name) {
+    const container = document.getElementById('exercise-history-container');
+    if (!container || !name) return;
+    container.innerHTML = '';
+
+    try {
+        const res = await fetch(`${API_URL}/exercises/history?telegram_id=${userId}&name=${encodeURIComponent(name)}`);
+        if (!res.ok) return;
+        const history = await res.json();
+        if (!history.length) return;
+
+        const months = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+        const formatDate = (iso) => {
+            const d = new Date(iso + 'T00:00:00');
+            return `${d.getDate()} ${months[d.getMonth()]}`;
+        };
+
+        container.innerHTML = `
+            <h2 class="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-3 ml-1">История упражнения</h2>
+            <div class="space-y-2">
+                ${history.map(entry => `
+                    <div class="p-3 bg-zinc-50 dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                        <p class="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">${formatDate(entry.date)}</p>
+                        <div class="flex flex-wrap gap-1.5">
+                            ${entry.sets.map((s, i) => `
+                                <div class="flex items-center gap-1 px-2 py-1.5 bg-white dark:bg-zinc-800 rounded-xl border border-zinc-100 dark:border-zinc-700">
+                                    <span class="text-[9px] font-black text-primary/50 dark:text-blue-500/50 uppercase">П${i+1}</span>
+                                    <span class="text-xs font-bold text-zinc-700 dark:text-zinc-200">${s.weight}<span class="text-[9px] font-medium text-zinc-400 ml-0.5">кг</span></span>
+                                    <span class="text-[9px] text-zinc-300 dark:text-zinc-600">×</span>
+                                    <span class="text-xs font-bold text-zinc-700 dark:text-zinc-200">${s.reps}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    } catch (e) {
+        console.error('Exercise history error:', e);
+    }
 }
 
 function renderEditSets(sets) {
@@ -1394,6 +1479,7 @@ function editExerciseWithName(name) {
     document.getElementById('nav-pill').classList.add('hidden');
     document.getElementById('btn-delete-exercise').classList.add('hidden');
     renderEditSets([]);
+    loadExerciseHistory(name);
 }
 
 function deleteCurrentExercise() {

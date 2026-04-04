@@ -433,6 +433,32 @@ async def get_ai_insight(telegram_id: int, database: Session = Depends(get_db)):
         print(f"OpenAI error: {e}")
         return {"insight": "Тренируйся регулярно — и результат не заставит себя ждать!"}
 
+class ExerciseHistorySet(BaseModel):
+    weight: float
+    reps: int
+
+class ExerciseHistoryEntry(BaseModel):
+    date: str
+    sets: List[ExerciseHistorySet]
+
+@app.get("/exercises/history", response_model=List[ExerciseHistoryEntry])
+def get_exercise_history(telegram_id: int, name: str, limit: int = 4, database: Session = Depends(get_db)):
+    exercises = (
+        database.query(db.Exercise)
+        .join(db.Workout)
+        .filter(
+            db.Workout.telegram_id == telegram_id,
+            db.Exercise.name == name
+        )
+        .order_by(db.Workout.date.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        {"date": ex.workout.date, "sets": [{"weight": s.weight, "reps": s.reps} for s in ex.sets]}
+        for ex in exercises
+    ]
+
 @app.delete("/sets/{set_id}")
 def delete_set(set_id: int, database: Session = Depends(get_db)):
     db_set = database.query(db.Set).filter(db.Set.id == set_id).first()

@@ -302,7 +302,6 @@
             transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.3s ease;
             overflow-y: auto;
             touch-action: pan-y;
-            padding-bottom: 80px;
         }
 
         .dark .view-pane {
@@ -710,7 +709,7 @@
                 </div>
 
                 <div id="exercises-scroll-area" class="flex-grow scrollable-y">
-                    <main class="px-6 py-4">
+                    <main class="px-6 py-4 pb-36">
                         <div class="flex items-center justify-between mb-6">
                             <h2 class="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest"
                                 id="workout-title">Сегодняшняя тренировка</h2>
@@ -731,7 +730,7 @@
             <div id="view-weight"
                 class="w-1/2 shrink-0 h-full flex flex-col overflow-hidden dark:bg-zinc-950 transition-colors">
                 <div id="weight-scroll-area" class="flex-grow scrollable-y">
-                    <main class="px-6 py-4">
+                    <main class="px-6 py-4 pb-36">
                         <div id="weight-overview-container" class="mb-2 px-2">
                             <p class="text-zinc-400 dark:text-zinc-500 text-sm font-medium mb-1">Текущий вес</p>
                             <div class="flex items-baseline gap-2 mb-2">
@@ -812,7 +811,9 @@
                 </button>
             </div>
 
-            <div class="mt-20 mb-32 px-6">
+            <div id="exercise-history-container" class="mt-6"></div>
+
+            <div class="mt-8 mb-32 px-6">
                 <button id="btn-save-exercise" onclick="saveChanges()"
                     class="w-full py-4 bg-primary text-white font-bold rounded-theme shadow-lg shadow-primary/20 hover:opacity-90 active:scale-[0.98] transition-all tracking-wide uppercase text-sm flex items-center justify-center">
                     СОХРАНИТЬ ИЗМЕНЕНИЯ
